@@ -78,6 +78,12 @@
   <!-- CENTER COLUMN -->
   <section class="col col-center">
 
+    <article class="card card-clock" id="card-clock" data-card="clock">
+      <div class="clock-time" id="clock-time">--:--:--</div>
+      <div class="clock-date" id="clock-date">—</div>
+      <div class="clock-quote" id="clock-quote">—</div>
+    </article>
+
     <article class="card card-news" id="card-news" data-card="news">
       <header class="card-head">
         <h2 class="card-title">Live news</h2>
@@ -86,12 +92,6 @@
       <div class="news-list" id="news-list">
         <div class="news-empty">Loading headlines…</div>
       </div>
-    </article>
-
-    <article class="card card-clock" id="card-clock" data-card="clock">
-      <div class="clock-time" id="clock-time">--:--:--</div>
-      <div class="clock-date" id="clock-date">—</div>
-      <div class="clock-quote" id="clock-quote">—</div>
     </article>
 
   </section>
@@ -109,13 +109,10 @@
 
     <article class="card card-next-event" id="card-next-event" data-card="nextEvent">
       <header class="card-head">
-        <h2 class="card-title">Next event</h2>
-        <span class="countdown-pill" id="event-countdown">—</span>
+        <h2 class="card-title">Upcoming events</h2>
+        <span class="event-count-pill" id="event-count">0</span>
       </header>
-      <div class="event-body" id="event-body">
-        <div class="event-name" id="event-name">No upcoming events</div>
-        <div class="event-meta" id="event-meta">Add one in settings</div>
-      </div>
+      <div class="upcoming-events-list" id="upcoming-events-list" aria-label="Next 3 upcoming events"></div>
     </article>
 
     <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">

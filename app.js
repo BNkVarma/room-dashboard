@@ -18,7 +18,8 @@ const CALENDAR_CACHE_KEY = "roomDashboard.appleCalendarCache.v1";
 
 // Public, free, key-less CORS proxy used only for feeds that don't send
 // CORS headers themselves. See the README for the limitations of this.
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const CORS_PROXY = "";
+const FEED_PROXY_FALLBACK = "";
 const APPLE_CALENDAR_PROXY_FALLBACK = "";
 
 const WEATHER_METRICS = [
@@ -355,6 +356,8 @@ const el = {
   calTitle: $("#calendar-title"),
   calWeekdays: $("#calendar-weekdays"),
   calGrid: $("#calendar-grid"),
+  upcomingEventsList: $("#upcoming-events-list"),
+  eventCount: $("#event-count"),
 
   eventCountdown: $("#event-countdown"),
   eventName: $("#event-name"),
@@ -660,9 +663,22 @@ async function fetchHN(source){
   return items.filter(Boolean);
 }
 
+function feedProxyEndpoint(path, targetUrl){
+  const configured = (settings.appleCalendar.proxyUrl || FEED_PROXY_FALLBACK || "").trim();
+  if(!configured) throw new Error("Set the Cloudflare Worker URL in Settings → Calendar");
+  const proxyUrl = new URL(configured);
+  // Reuse the same Cloudflare Worker used for Apple Calendar.
+  // If the user saved /calendar, replace it with /rss for news.
+  if(!proxyUrl.pathname || proxyUrl.pathname === "/" || proxyUrl.pathname === "/calendar" || proxyUrl.pathname === "/rss") {
+    proxyUrl.pathname = path;
+  }
+  proxyUrl.searchParams.set("url", targetUrl);
+  return proxyUrl.toString();
+}
+
 async function fetchRSS(source){
-  const proxied = CORS_PROXY + encodeURIComponent(source.url);
-  const res = await fetch(proxied);
+  const endpoint = feedProxyEndpoint("/rss", source.url);
+  const res = await fetch(endpoint,{cache:"no-store"});
   if(!res.ok) throw new Error("rss http " + res.status);
   const text = await res.text();
   const xml = new DOMParser().parseFromString(text, "application/xml");
@@ -899,17 +915,11 @@ async function refreshAppleCalendar(){
   }
   try{
     const proxy = (settings.appleCalendar.proxyUrl || APPLE_CALENDAR_PROXY_FALLBACK).trim();
-    let endpoint;
-    if(proxy){
-      // The bundled Cloudflare Worker exposes /calendar. If the user pastes
-      // only the workers.dev origin, add the endpoint automatically.
-      const proxyUrl = new URL(proxy);
-      if(!proxyUrl.pathname || proxyUrl.pathname === "/") proxyUrl.pathname = "/calendar";
-      proxyUrl.searchParams.set("url", url);
-      endpoint = proxyUrl.toString();
-    }else{
-      endpoint = CORS_PROXY + encodeURIComponent(url);
-    }
+    if(!proxy) throw new Error("Set the Cloudflare Worker URL in Settings → Calendar");
+    const proxyUrl = new URL(proxy);
+    if(!proxyUrl.pathname || proxyUrl.pathname === "/" || proxyUrl.pathname === "/calendar" || proxyUrl.pathname === "/rss") proxyUrl.pathname = "/calendar";
+    proxyUrl.searchParams.set("url", url);
+    const endpoint = proxyUrl.toString();
     const res=await fetch(endpoint,{cache:"no-store"});
     if(!res.ok) throw new Error("calendar http "+res.status);
     const text=await res.text();
@@ -1020,20 +1030,45 @@ function formatCountdown(ts){
 }
 
 function renderNextEvent(){
-  const upcoming = upcomingEvents();
+  const upcoming = upcomingEvents().slice(0, 3);
+  if(el.eventCount) el.eventCount.textContent = upcoming.length;
+  if(!el.upcomingEventsList) return;
+
   if(!upcoming.length){
-    el.eventCountdown.textContent = "—";
-    el.eventName.textContent = "No upcoming events";
-    el.eventMeta.textContent = "Add one in settings";
+    el.upcomingEventsList.innerHTML = `<div class="upcoming-events-empty">No upcoming events<br><span>Add one in settings</span></div>`;
     return;
   }
-  const next = upcoming[0];
-  el.eventCountdown.textContent = formatCountdown(next.ts);
-  el.eventName.textContent = next.title;
-  const dateObj = new Date(next.ts);
-  const timeStr = dateObj.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const dateStr = dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  el.eventMeta.textContent = timeStr + " · " + dateStr + (next.location ? " · " + next.location : "");
+
+  el.upcomingEventsList.innerHTML = "";
+  upcoming.forEach((event, index) => {
+    const item = document.createElement("div");
+    item.className = "upcoming-event-item";
+
+    const main = document.createElement("div");
+    main.className = "upcoming-event-main";
+
+    const name = document.createElement("div");
+    name.className = "upcoming-event-name";
+    name.textContent = event.title || "Untitled event";
+
+    const dateObj = new Date(event.ts);
+    const timeStr = dateObj.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const dateStr = dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const meta = document.createElement("div");
+    meta.className = "upcoming-event-meta";
+    meta.textContent = timeStr + " · " + dateStr + (event.location ? " · " + event.location : "");
+
+    main.appendChild(name);
+    main.appendChild(meta);
+
+    const countdown = document.createElement("div");
+    countdown.className = "upcoming-event-countdown";
+    countdown.textContent = formatCountdown(event.ts);
+
+    item.appendChild(main);
+    item.appendChild(countdown);
+    el.upcomingEventsList.appendChild(item);
+  });
 }
 
 /* --------------------------------------------------------------------
@@ -1124,6 +1159,7 @@ function renderSettingsStaticLists(){
   $("#news-count").value = settings.newsCount;
   $("#news-refresh").value = settings.newsRefreshMinutes;
   $("#apple-calendar-url").value = settings.appleCalendar.url || "";
+  $("#apple-calendar-proxy").value = settings.appleCalendar.proxyUrl || "";
   setCalendarStatus(settings.appleCalendar.enabled && settings.appleCalendar.url ? "Connected · tap Sync to refresh" : "Not connected", settings.appleCalendar.enabled && settings.appleCalendar.url ? "ok" : "");
 
   $("#night-start").value = settings.nightMode.start;
@@ -1274,7 +1310,7 @@ function setupMiscControls(){
     const url = normalizeCalendarUrl($("#apple-calendar-url").value);
     if(!url){ setCalendarStatus("Paste an Apple published calendar link first","error"); return; }
     settings.appleCalendar.url = url;
-    settings.appleCalendar.proxyUrl = $("#apple-calendar-proxy")?.value?.trim();
+    settings.appleCalendar.proxyUrl = $("#apple-calendar-proxy").value.trim();
     settings.appleCalendar.enabled = true;
     saveSettings();
     setCalendarStatus("Syncing…");
