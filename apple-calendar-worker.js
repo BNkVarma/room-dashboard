@@ -52,16 +52,15 @@ export default {
     try {
       const upstream = await fetch(target.toString(), {
         method: "GET",
-        redirect: "manual",
+        redirect: "follow",
         headers: {
           "User-Agent": "RoomDashboard/1.0 AppleCalendarProxy",
           "Accept": "text/calendar,text/plain;q=0.9,*/*;q=0.5",
         },
       });
 
-      if (upstream.status >= 300 && upstream.status < 400) {
-        return response("Apple calendar returned a redirect. Try copying the final published https:// URL from Apple.", 502, origin);
-      }
+      // Apple/iCloud published calendar URLs can redirect. Follow the redirect
+      // and validate the resulting response is still an iCalendar feed.
       if (!upstream.ok) {
         return response(`Apple calendar returned HTTP ${upstream.status}`, 502, origin);
       }

@@ -899,7 +899,17 @@ async function refreshAppleCalendar(){
   }
   try{
     const proxy = (settings.appleCalendar.proxyUrl || APPLE_CALENDAR_PROXY_FALLBACK).trim();
-    const endpoint = proxy ? proxy.replace(/\/$/, "") + "?url=" + encodeURIComponent(url) : CORS_PROXY + encodeURIComponent(url);
+    let endpoint;
+    if(proxy){
+      // The bundled Cloudflare Worker exposes /calendar. If the user pastes
+      // only the workers.dev origin, add the endpoint automatically.
+      const proxyUrl = new URL(proxy);
+      if(!proxyUrl.pathname || proxyUrl.pathname === "/") proxyUrl.pathname = "/calendar";
+      proxyUrl.searchParams.set("url", url);
+      endpoint = proxyUrl.toString();
+    }else{
+      endpoint = CORS_PROXY + encodeURIComponent(url);
+    }
     const res=await fetch(endpoint,{cache:"no-store"});
     if(!res.ok) throw new Error("calendar http "+res.status);
     const text=await res.text();

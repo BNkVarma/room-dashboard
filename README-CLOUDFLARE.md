@@ -25,3 +25,7 @@ The dashboard is a static GitHub Pages app. Safari cannot reliably fetch an Appl
 The Worker is deliberately restricted to HTTPS hosts under `icloud.com`; it is not a general-purpose open proxy.
 
 Cloudflare's current Free Workers plan includes 100,000 requests/day, which is far beyond what a single iPad dashboard needs. See the official limits/pricing docs for current limits.
+
+
+### Dashboard proxy URL
+In Settings → Calendar, you may paste either the Worker origin (for example `https://your-worker.workers.dev`) or the full `/calendar` URL. The dashboard automatically adds `/calendar` when only the origin is supplied.
