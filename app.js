@@ -14,6 +14,7 @@ const STORAGE_KEY = "roomDashboard.settings.v1";
 const NEWS_CACHE_KEY = "roomDashboard.newsCache.v1";
 const WEATHER_CACHE_KEY = "roomDashboard.weatherCache.v1";
 const AIR_CACHE_KEY = "roomDashboard.airCache.v1";
+const CALENDAR_CACHE_KEY = "roomDashboard.appleCalendarCache.v1";
 
 // Public, free, key-less CORS proxy used only for feeds that don't send
 // CORS headers themselves. See the README for the limitations of this.
@@ -66,7 +67,8 @@ const DISPLAY_CARDS = [
   { key: "clock",          label: "Clock" },
   { key: "calendar",       label: "Calendar" },
   { key: "nextEvent",      label: "Next event" },
-  { key: "reminders",      label: "Reminders" }
+  { key: "reminders",      label: "Reminders" },
+  { key: "sunMoon",         label: "Sun & moon" }
 ];
 
 // Short, calm quotes shown under the clock. Rotates once per day, fully
@@ -195,6 +197,44 @@ const ICONS = {
 
 function renderIcon(name){ return (ICONS[name] || ICONS.cloud)(); }
 
+const MOON_PHASE_NAMES = [
+  "New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous",
+  "Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent"
+];
+
+function sunIcon(direction){
+  const color = direction === "up" ? "var(--accent-amber)" : "var(--accent-orange)";
+  const arrow = direction === "up"
+    ? `<polygon points="50,6 41,20 59,20" fill="${color}"/>`
+    : `<polygon points="50,54 41,40 59,40" fill="${color}"/>`;
+  return `<svg viewBox="0 0 100 60">
+    <line x1="8" y1="46" x2="92" y2="46" stroke="var(--text-tertiary)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="50" cy="30" r="13" fill="${color}"/>
+    ${arrow}
+  </svg>`;
+}
+
+function moonIcon(k){
+  const R = 30, cx = 50, cy = 50;
+  const illum = 1 - Math.abs(1 - 2*k);
+  const waxing = k < 0.5;
+  const offset = 2 * R * illum * (waxing ? -1 : 1);
+  return `<svg viewBox="0 0 100 100">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#E7E2D2"/>
+    <circle cx="${(cx+offset).toFixed(1)}" cy="${cy}" r="${R}" fill="var(--bg-elevated)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  </svg>`;
+}
+
+function moonPhaseFraction(date){
+  const synodicMonth = 29.530588853;
+  const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const days = (date.getTime() - knownNewMoon) / 86400000;
+  let phase = (days % synodicMonth) / synodicMonth;
+  if(phase < 0) phase += 1;
+  return phase;
+}
+
 /* --------------------------------------------------------------------
    3. SETTINGS
    -------------------------------------------------------------------- */
@@ -208,6 +248,8 @@ function defaultSettings(){
     newsSources: { hn:true, techcrunch:true, arstechnica:false, theverge:false, mit:false, cnbc:true, googlebiz:false, nasa:true, space:true, googlesci:false, googleus:false, googleworld:false, googleauto:false, googlesports:false },
     newsCount: 6,
     newsRefreshMinutes: 10,
+    appleCalendar: { enabled:false, url:"", refreshMinutes:15 },
+    appleCalendarEvents: [],
     calendarEvents: [
       { id: "evt-sample", title: "CCAR-F: Claude Certified Architect – Foundations", date: nextSaturdayISO(), time: "13:00", location: "" }
     ],
@@ -218,7 +260,7 @@ function defaultSettings(){
     ],
     nightMode: { start: "22:00", end: "07:00", alarmText: "Alarm · 7:00 AM" },
     display: {
-      cards: { weather:true, weatherDetails:true, airQuality:true, news:true, clock:true, calendar:true, nextEvent:true, reminders:true },
+      cards: { weather:true, weatherDetails:true, airQuality:true, news:true, clock:true, calendar:true, nextEvent:true, reminders:true, sunMoon:true },
       clockSize: "regular"
     }
   };
@@ -247,6 +289,8 @@ function loadSettings(){
       newsSources: Object.assign({}, def.newsSources, parsed.newsSources),
       newsCount: parsed.newsCount || def.newsCount,
       newsRefreshMinutes: parsed.newsRefreshMinutes || def.newsRefreshMinutes,
+      appleCalendar: Object.assign({}, def.appleCalendar, parsed.appleCalendar),
+      appleCalendarEvents: Array.isArray(parsed.appleCalendarEvents) ? parsed.appleCalendarEvents : def.appleCalendarEvents,
       calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : def.calendarEvents,
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : def.reminders,
       nightMode: Object.assign({}, def.nightMode, parsed.nightMode),
@@ -316,6 +360,14 @@ const el = {
   eventMeta: $("#event-meta"),
 
   remindersList: $("#reminders-list"),
+
+  sunriseIcon: $("#sunrise-icon"),
+  sunsetIcon: $("#sunset-icon"),
+  sunriseTime: $("#sunrise-time"),
+  sunsetTime: $("#sunset-time"),
+  moonIcon: $("#moon-icon"),
+  moonPhase: $("#moon-phase"),
+  moonIllum: $("#moon-illum"),
 
   settingsBtn: $("#settings-btn"),
   settingsPanel: $("#settings-panel"),
@@ -410,7 +462,7 @@ async function fetchWeather(){
     latitude: lat, longitude: lon,
     current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,is_day",
     hourly: "precipitation_probability,uv_index",
-    daily: "temperature_2m_max,temperature_2m_min",
+    daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset",
     temperature_unit: imperial ? "fahrenheit" : "celsius",
     wind_speed_unit: imperial ? "mph" : "kmh",
     precipitation_unit: imperial ? "inch" : "mm",
@@ -469,6 +521,27 @@ function renderWeather(json, fromCacheTs){
   });
 
   el.freshWeather.textContent = freshnessLabel(fromCacheTs || Date.now());
+
+  renderSunMoon(json);
+}
+
+function renderSunMoon(json){
+  if(!el.sunriseTime) return;
+  if(json.daily && json.daily.sunrise && json.daily.sunset){
+    const sunrise = new Date(json.daily.sunrise[0]);
+    const sunset = new Date(json.daily.sunset[0]);
+    el.sunriseTime.textContent = sunrise.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+    el.sunsetTime.textContent = sunset.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+  }
+  el.sunriseIcon.innerHTML = sunIcon("up");
+  el.sunsetIcon.innerHTML = sunIcon("down");
+
+  const k = moonPhaseFraction(new Date());
+  const illum = Math.round((1 - Math.abs(1 - 2*k)) * 100);
+  const idx = Math.round(k * 8) % 8;
+  el.moonIcon.innerHTML = moonIcon(k);
+  el.moonPhase.textContent = MOON_PHASE_NAMES[idx];
+  el.moonIllum.textContent = illum + "% illuminated";
 }
 
 async function refreshWeather(){
@@ -483,6 +556,7 @@ async function refreshWeather(){
     }else{
       el.weatherCond.textContent = "Unavailable";
       el.freshWeather.textContent = "No data yet";
+      renderSunMoon({}); // moon phase is computed locally and works offline
     }
   }
 }
@@ -673,6 +747,181 @@ function renderNews(items, ts){
    10. CALENDAR
    -------------------------------------------------------------------- */
 
+function calendarCacheGet(){
+  try{ return JSON.parse(localStorage.getItem(CALENDAR_CACHE_KEY)); }catch(e){ return null; }
+}
+function calendarCacheSet(events){
+  localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify({ events, ts: Date.now() }));
+}
+function normalizeCalendarUrl(url){
+  let value = (url || "").trim();
+  if(value.startsWith("webcal://")) value = "https://" + value.slice(9);
+  if(value.startsWith("webcals://")) value = "https://" + value.slice(10);
+  return value;
+}
+function unfoldIcs(text){
+  return text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").replace(/\n[ \t]/g,"");
+}
+function decodeIcsText(value){
+  return String(value || "").replace(/\\n/gi,"\n").replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\\\/g,"\\").trim();
+}
+function parseIcsProp(line){
+  const idx = line.indexOf(":");
+  if(idx < 0) return null;
+  const left = line.slice(0,idx), value = line.slice(idx+1);
+  const bits = left.split(";");
+  const name = bits.shift().toUpperCase();
+  const params = {};
+  bits.forEach(bit => {
+    const eq = bit.indexOf("=");
+    if(eq > -1) params[bit.slice(0,eq).toUpperCase()] = bit.slice(eq+1).replace(/^"|"$/g,"");
+  });
+  return {name, params, value};
+}
+function timeZoneOffsetMs(date, timeZone){
+  try{
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" }).formatToParts(date);
+    const p = {}; parts.forEach(x => { if(x.type !== "literal") p[x.type] = x.value; });
+    const asUTC = Date.UTC(+p.year, +p.month-1, +p.day, +p.hour, +p.minute, +p.second);
+    return asUTC - date.getTime();
+  }catch(e){ return 0; }
+}
+function parseIcsDate(value, params){
+  const raw = String(value || "").trim();
+  if(!raw) return null;
+  if(params && params.VALUE === "DATE"){
+    const y=+raw.slice(0,4), m=+raw.slice(4,6)-1, d=+raw.slice(6,8);
+    return new Date(y,m,d,0,0,0,0);
+  }
+  const y=+raw.slice(0,4), m=+raw.slice(4,6)-1, d=+raw.slice(6,8), h=+raw.slice(9,11), min=+raw.slice(11,13), sec=+(raw.slice(13,15)||0);
+  if(raw.endsWith("Z")) return new Date(Date.UTC(y,m,d,h,min,sec));
+  const tz = params && params.TZID;
+  if(tz){
+    let utc = Date.UTC(y,m,d,h,min,sec);
+    let date = new Date(utc - timeZoneOffsetMs(new Date(utc), tz));
+    date = new Date(utc - timeZoneOffsetMs(date, tz));
+    return date;
+  }
+  return new Date(y,m,d,h,min,sec,0);
+}
+function parseRRule(value){
+  const out={};
+  String(value||"").split(";").forEach(part=>{
+    const [k,v] = part.split("=");
+    if(k && v) out[k.toUpperCase()] = v.toUpperCase();
+  });
+  return out;
+}
+function untilDate(rule){
+  if(!rule.UNTIL) return null;
+  return parseIcsDate(rule.UNTIL, {}) || null;
+}
+function addMonthsSafe(date, months){
+  const d = new Date(date.getTime()), day=d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth()+months); d.setDate(Math.min(day, new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));
+  return d;
+}
+function expandRecurringEvent(base, rule, horizonDays=180){
+  if(!rule || !rule.FREQ) return [base];
+  const results=[];
+  const start=base.start, duration=base.end ? base.end.getTime()-base.start.getTime() : 0;
+  const until=untilDate(rule) || new Date(Date.now()+horizonDays*86400000);
+  const maxCount=rule.COUNT ? Math.max(1, +rule.COUNT) : 1000;
+  const interval=Math.max(1, +(rule.INTERVAL||1));
+  const byday=rule.BYDAY ? rule.BYDAY.split(",") : [];
+  let count=0;
+  const push=(dt)=>{ if(dt>until || count>=maxCount || dt.getTime()>Date.now()+horizonDays*86400000) return false; results.push({...base,start:new Date(dt),end:base.end?new Date(dt.getTime()+duration):null, date:formatLocalDate(dt), time:base.allDay?"00:00":formatLocalTime(dt), id:base.uid+"-"+dt.getTime()}); count++; return true; };
+  push(start);
+  let cursor=new Date(start);
+  if(rule.FREQ==="DAILY"){
+    while(count<maxCount){ cursor.setDate(cursor.getDate()+interval); if(!push(cursor)) break; }
+  }else if(rule.FREQ==="WEEKLY"){
+    const days=byday.length?byday:[dayCode(start.getDay())];
+    let weekStart=new Date(start); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+    let week=0;
+    while(count<maxCount){
+      week += 1; const baseWeek=new Date(weekStart); baseWeek.setDate(baseWeek.getDate()+week*7*interval);
+      for(const code of days){
+        const wd=dayCodeToNum(code.replace(/^[-+]?\d+/,"")); if(wd==null) continue;
+        const dt=new Date(baseWeek); dt.setDate(baseWeek.getDate()+wd); dt.setHours(start.getHours(),start.getMinutes(),start.getSeconds(),0);
+        if(dt<=start) continue; if(!push(dt)) return results;
+      }
+    }
+  }else if(rule.FREQ==="MONTHLY"){
+    while(count<maxCount){ cursor=addMonthsSafe(cursor,interval); if(!push(cursor)) break; }
+  }else if(rule.FREQ==="YEARLY"){
+    while(count<maxCount){ cursor=new Date(cursor.getFullYear()+interval,cursor.getMonth(),cursor.getDate(),cursor.getHours(),cursor.getMinutes(),cursor.getSeconds()); if(!push(cursor)) break; }
+  }
+  return results;
+}
+function dayCode(day){ return ["SU","MO","TU","WE","TH","FR","SA"][day]; }
+function dayCodeToNum(code){ return {SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6}[code]; }
+function formatLocalDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function formatLocalTime(d){ return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }
+
+function parseICS(text){
+  const lines=unfoldIcs(text).split("\n");
+  const events=[]; let current=null;
+  for(const line of lines){
+    if(line.toUpperCase()==="BEGIN:VEVENT"){ current={}; continue; }
+    if(line.toUpperCase()==="END:VEVENT"){
+      if(current && current.dtstart){
+        const start=current.dtstart, end=current.dtend || null;
+        const base={ uid:current.uid||uid("apple"), title:decodeIcsText(current.summary)||"Untitled event", location:decodeIcsText(current.location||""), start, end, allDay:current.allDay||false, source:"Apple Calendar", remote:true, date:formatLocalDate(start), time:current.allDay?"00:00":formatLocalTime(start) };
+        if(current.status !== "CANCELLED"){
+          const expanded=expandRecurringEvent(base,current.rrule);
+          events.push(...expanded);
+        }
+      }
+      current=null; continue;
+    }
+    if(!current) continue;
+    const prop=parseIcsProp(line); if(!prop) continue;
+    if(prop.name==="UID") current.uid=decodeIcsText(prop.value);
+    else if(prop.name==="SUMMARY") current.summary=prop.value;
+    else if(prop.name==="LOCATION") current.location=prop.value;
+    else if(prop.name==="STATUS") current.status=prop.value.toUpperCase();
+    else if(prop.name==="DTSTART"){ current.dtstart=parseIcsDate(prop.value,prop.params); current.allDay=prop.params.VALUE==="DATE"; }
+    else if(prop.name==="DTEND") current.dtend=parseIcsDate(prop.value,prop.params);
+    else if(prop.name==="RRULE") current.rrule=parseRRule(prop.value);
+  }
+  return events.filter(e=>e.start && e.start.getTime()>=Date.now()-86400000).sort((a,b)=>a.start-b.start);
+}
+function allCalendarEvents(){
+  return [...settings.calendarEvents, ...(settings.appleCalendarEvents||[])];
+}
+async function refreshAppleCalendar(){
+  const url=normalizeCalendarUrl(settings.appleCalendar.url);
+  if(!settings.appleCalendar.enabled || !url){
+    settings.appleCalendarEvents=[];
+    return false;
+  }
+  try{
+    const proxied=CORS_PROXY+encodeURIComponent(url);
+    const res=await fetch(proxied,{cache:"no-store"});
+    if(!res.ok) throw new Error("calendar http "+res.status);
+    const text=await res.text();
+    if(!/BEGIN:VCALENDAR/i.test(text)) throw new Error("not an iCalendar feed");
+    const events=parseICS(text);
+    settings.appleCalendarEvents=events.slice(0,200);
+    calendarCacheSet(settings.appleCalendarEvents);
+    saveSettings();
+    setCalendarStatus(`Synced ${events.length} events · ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`,"ok");
+    renderCalendar(); renderNextEvent(); renderEventsEditList();
+    return true;
+  }catch(e){
+    const cached=calendarCacheGet();
+    if(cached && Array.isArray(cached.events)) settings.appleCalendarEvents=cached.events;
+    setCalendarStatus("Sync failed — using last saved calendar data","error");
+    renderCalendar(); renderNextEvent(); renderEventsEditList();
+    return false;
+  }
+}
+function setCalendarStatus(text,kind){
+  const node=$("#apple-calendar-status"); if(!node) return;
+  node.textContent=text; node.classList.remove("ok","error"); if(kind) node.classList.add(kind);
+}
+
 function sameDate(a, b){
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
@@ -694,7 +943,7 @@ function renderCalendar(){
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  const eventDates = settings.calendarEvents.map(e => e.date);
+  const eventDates = allCalendarEvents().map(e => e.date);
 
   el.calGrid.innerHTML = "";
   const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
@@ -739,8 +988,8 @@ function renderCalendar(){
 
 function upcomingEvents(){
   const now = Date.now();
-  return settings.calendarEvents
-    .map(e => ({ ...e, ts: new Date(`${e.date}T${e.time || "00:00"}`).getTime() }))
+  return allCalendarEvents()
+    .map(e => ({ ...e, ts: e.start instanceof Date ? e.start.getTime() : new Date(`${e.date}T${e.time || "00:00"}`).getTime() }))
     .filter(e => !isNaN(e.ts) && e.ts >= now)
     .sort((a,b) => a.ts - b.ts);
 }
@@ -860,6 +1109,8 @@ function renderSettingsStaticLists(){
 
   $("#news-count").value = settings.newsCount;
   $("#news-refresh").value = settings.newsRefreshMinutes;
+  $("#apple-calendar-url").value = settings.appleCalendar.url || "";
+  setCalendarStatus(settings.appleCalendar.enabled && settings.appleCalendar.url ? "Connected · tap Sync to refresh" : "Not connected", settings.appleCalendar.enabled && settings.appleCalendar.url ? "ok" : "");
 
   $("#night-start").value = settings.nightMode.start;
   $("#night-end").value = settings.nightMode.end;
@@ -878,12 +1129,20 @@ function renderSettingsStaticLists(){
 function renderEventsEditList(){
   const list = $("#events-list");
   list.innerHTML = "";
-  const sorted = [...settings.calendarEvents].sort((a,b) => new Date(a.date+"T"+(a.time||"00:00")) - new Date(b.date+"T"+(b.time||"00:00")));
-  if(!sorted.length){
-    list.innerHTML = `<div class="empty-note">No events yet.</div>`;
-    return;
-  }
-  sorted.forEach(ev => {
+  const remote = (settings.appleCalendarEvents||[]).filter(e => e.start && e.start.getTime() >= Date.now()-86400000).sort((a,b)=>a.start-b.start).slice(0,20);
+  const local = [...settings.calendarEvents].sort((a,b) => new Date(a.date+"T"+(a.time||"00:00")) - new Date(b.date+"T"+(b.time||"00:00")));
+  if(!remote.length && !local.length){ list.innerHTML = `<div class="empty-note">No events yet.</div>`; return; }
+
+  remote.forEach(ev => {
+    const li=document.createElement("li"); li.className="editable-item remote-calendar";
+    const dateObj=ev.start instanceof Date ? ev.start : new Date(ev.start);
+    const dateStr=dateObj.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+    const timeStr=ev.allDay?"All day":dateObj.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+    li.innerHTML=`<div class="editable-item-text"><div class="ei-title">${escapeHtml(ev.title)}<span class="remote-badge">Apple</span></div><div class="ei-sub">${dateStr} · ${timeStr}${ev.location ? " · "+escapeHtml(ev.location):""}</div></div>`;
+    list.appendChild(li);
+  });
+
+  local.forEach(ev => {
     const li = document.createElement("li");
     li.className = "editable-item";
     const dateObj = new Date(ev.date + "T" + (ev.time || "00:00"));
@@ -893,14 +1152,11 @@ function renderEventsEditList(){
     li.querySelector(".editable-item-remove").addEventListener("click", () => {
       settings.calendarEvents = settings.calendarEvents.filter(e => e.id !== ev.id);
       saveSettings();
-      renderEventsEditList();
-      renderCalendar();
-      renderNextEvent();
+      renderEventsEditList(); renderCalendar(); renderNextEvent();
     });
     list.appendChild(li);
   });
 }
-
 function renderRemindersEditList(){
   const list = $("#reminders-edit-list");
   list.innerHTML = "";
@@ -1000,6 +1256,25 @@ function setupMiscControls(){
     restartNewsTimer();
   });
 
+  $("#sync-apple-calendar-btn").addEventListener("click", async () => {
+    const url = normalizeCalendarUrl($("#apple-calendar-url").value);
+    if(!url){ setCalendarStatus("Paste an Apple published calendar link first","error"); return; }
+    settings.appleCalendar.url = url;
+    settings.appleCalendar.enabled = true;
+    saveSettings();
+    setCalendarStatus("Syncing…");
+    await refreshAppleCalendar();
+  });
+
+  $("#clear-apple-calendar-btn").addEventListener("click", () => {
+    settings.appleCalendar = { enabled:false, url:"", refreshMinutes:15 };
+    settings.appleCalendarEvents = [];
+    saveSettings();
+    $("#apple-calendar-url").value = "";
+    setCalendarStatus("Not connected");
+    renderCalendar(); renderNextEvent(); renderEventsEditList();
+  });
+
   $("#add-event-btn").addEventListener("click", () => {
     const title = $("#new-event-title").value.trim();
     const date = $("#new-event-date").value;
@@ -1062,6 +1337,7 @@ function refreshAll(){
   refreshWeather();
   refreshAir();
   refreshNews();
+  refreshAppleCalendar();
   renderCalendar();
   renderNextEvent();
   renderReminders();
@@ -1087,6 +1363,7 @@ function init(){
   refreshAll();
   setInterval(refreshWeather, 5 * 60000);
   setInterval(refreshAir, 5 * 60000);
+  setInterval(() => refreshAppleCalendar(), (settings.appleCalendar.refreshMinutes || 15) * 60000);
   restartNewsTimer();
 
   // Midnight rollover: re-render calendar + quote once the day changes.

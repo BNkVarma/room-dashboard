@@ -118,6 +118,31 @@
       </div>
     </article>
 
+    <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">
+      <header class="card-head">
+        <h2 class="card-title">Sun &amp; moon</h2>
+      </header>
+      <div class="sun-row">
+        <div class="sun-item">
+          <div class="sun-icon" id="sunrise-icon"></div>
+          <div class="sun-time" id="sunrise-time">—</div>
+          <div class="sun-label">Sunrise</div>
+        </div>
+        <div class="sun-item">
+          <div class="sun-icon" id="sunset-icon"></div>
+          <div class="sun-time" id="sunset-time">—</div>
+          <div class="sun-label">Sunset</div>
+        </div>
+      </div>
+      <div class="moon-row">
+        <div class="moon-icon" id="moon-icon"></div>
+        <div class="moon-info">
+          <div class="moon-phase" id="moon-phase">—</div>
+          <div class="moon-illum" id="moon-illum">—</div>
+        </div>
+      </div>
+    </article>
+
     <article class="card card-reminders" id="card-reminders" data-card="reminders">
       <header class="card-head">
         <h2 class="card-title">Reminders</h2>
@@ -205,7 +230,18 @@
 
     <!-- CALENDAR TAB -->
     <section class="tab-pane" data-pane="calendar">
-      <label class="field-label">Add an event</label>
+      <label class="field-label">Apple Calendar · read-only sync</label>
+      <div class="event-form">
+        <input type="url" id="apple-calendar-url" placeholder="Paste your Apple published calendar link (webcal:// or https://)" />
+        <div class="event-form-row">
+          <button class="btn-add" id="sync-apple-calendar-btn">Sync Apple Calendar</button>
+          <button class="btn-secondary" id="clear-apple-calendar-btn" type="button">Clear</button>
+        </div>
+        <div class="calendar-sync-status" id="apple-calendar-status">Not connected</div>
+      </div>
+      <p class="settings-note">Your Apple published calendar stays read-only. The dashboard fetches the ICS feed through the same free CORS proxy used for RSS news. Only the public calendar URL is stored in this browser.</p>
+
+      <label class="field-label">Add a local event</label>
       <div class="event-form">
         <input type="text" id="new-event-title" placeholder="Event title" />
         <div class="event-form-row">
