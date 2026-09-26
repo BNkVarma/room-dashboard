@@ -237,9 +237,11 @@
           <button class="btn-add" id="sync-apple-calendar-btn">Sync Apple Calendar</button>
           <button class="btn-secondary" id="clear-apple-calendar-btn" type="button">Clear</button>
         </div>
+        <label class="field-label" for="apple-calendar-proxy">Calendar proxy URL (recommended)</label>
+        <input type="url" id="apple-calendar-proxy" placeholder="https://YOUR-WORKER.workers.dev/calendar" />
         <div class="calendar-sync-status" id="apple-calendar-status">Not connected</div>
       </div>
-      <p class="settings-note">Your Apple published calendar stays read-only. The dashboard fetches the ICS feed through the same free CORS proxy used for RSS news. Only the public calendar URL is stored in this browser.</p>
+      <p class="settings-note">Your Apple published calendar stays read-only. For reliable syncing, use the included Cloudflare Worker proxy; the Worker only accepts Apple iCloud calendar hosts and adds CORS headers. The calendar URL and proxy URL are stored only in this browser.</p>
 
       <label class="field-label">Add a local event</label>
       <div class="event-form">

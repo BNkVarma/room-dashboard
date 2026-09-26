@@ -19,6 +19,7 @@ const CALENDAR_CACHE_KEY = "roomDashboard.appleCalendarCache.v1";
 // Public, free, key-less CORS proxy used only for feeds that don't send
 // CORS headers themselves. See the README for the limitations of this.
 const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const APPLE_CALENDAR_PROXY_FALLBACK = "";
 
 const WEATHER_METRICS = [
   { key: "feelsLike", label: "Feels like" },
@@ -248,7 +249,7 @@ function defaultSettings(){
     newsSources: { hn:true, techcrunch:true, arstechnica:false, theverge:false, mit:false, cnbc:true, googlebiz:false, nasa:true, space:true, googlesci:false, googleus:false, googleworld:false, googleauto:false, googlesports:false },
     newsCount: 6,
     newsRefreshMinutes: 10,
-    appleCalendar: { enabled:false, url:"", refreshMinutes:15 },
+    appleCalendar: { enabled:false, url:"", refreshMinutes:15, proxyUrl:"" },
     appleCalendarEvents: [],
     calendarEvents: [
       { id: "evt-sample", title: "CCAR-F: Claude Certified Architect – Foundations", date: nextSaturdayISO(), time: "13:00", location: "" }
@@ -897,8 +898,9 @@ async function refreshAppleCalendar(){
     return false;
   }
   try{
-    const proxied=CORS_PROXY+encodeURIComponent(url);
-    const res=await fetch(proxied,{cache:"no-store"});
+    const proxy = (settings.appleCalendar.proxyUrl || APPLE_CALENDAR_PROXY_FALLBACK).trim();
+    const endpoint = proxy ? proxy.replace(/\/$/, "") + "?url=" + encodeURIComponent(url) : CORS_PROXY + encodeURIComponent(url);
+    const res=await fetch(endpoint,{cache:"no-store"});
     if(!res.ok) throw new Error("calendar http "+res.status);
     const text=await res.text();
     if(!/BEGIN:VCALENDAR/i.test(text)) throw new Error("not an iCalendar feed");
@@ -910,9 +912,11 @@ async function refreshAppleCalendar(){
     renderCalendar(); renderNextEvent(); renderEventsEditList();
     return true;
   }catch(e){
+    console.warn("Apple Calendar sync failed", e);
     const cached=calendarCacheGet();
     if(cached && Array.isArray(cached.events)) settings.appleCalendarEvents=cached.events;
-    setCalendarStatus("Sync failed — using last saved calendar data","error");
+    const detail = e && e.message ? ` (${e.message})` : "";
+    setCalendarStatus("Sync failed" + detail + " — using last saved calendar data","error");
     renderCalendar(); renderNextEvent(); renderEventsEditList();
     return false;
   }
@@ -1260,6 +1264,7 @@ function setupMiscControls(){
     const url = normalizeCalendarUrl($("#apple-calendar-url").value);
     if(!url){ setCalendarStatus("Paste an Apple published calendar link first","error"); return; }
     settings.appleCalendar.url = url;
+    settings.appleCalendar.proxyUrl = $("apple-calendar-proxy").value.trim();
     settings.appleCalendar.enabled = true;
     saveSettings();
     setCalendarStatus("Syncing…");
@@ -1267,7 +1272,7 @@ function setupMiscControls(){
   });
 
   $("#clear-apple-calendar-btn").addEventListener("click", () => {
-    settings.appleCalendar = { enabled:false, url:"", refreshMinutes:15 };
+    settings.appleCalendar = { enabled:false, url:"", refreshMinutes:15, proxyUrl:"" };
     settings.appleCalendarEvents = [];
     saveSettings();
     $("#apple-calendar-url").value = "";
