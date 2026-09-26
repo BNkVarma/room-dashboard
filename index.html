@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07101c">
+<title>RoomOS Dashboard</title>
+<style>
+:root{
+ --bg:#07101c;--panel:rgba(16,28,43,.82);--panel2:rgba(20,34,52,.9);
+ --text:#f6f8fb;--muted:#9aa9ba;--accent:#56f29b;--blue:#168cff;
+ --purple:#9d6cff;--red:#ff5252;--line:rgba(255,255,255,.09)
+}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 15% 10%,rgba(35,91,150,.25),transparent 38%),radial-gradient(circle at 85% 90%,rgba(52,117,77,.18),transparent 35%);pointer-events:none}
+#app{position:relative;width:100%;height:100%;padding:2.2vh 2.2vw;display:grid;grid-template-columns:25% 1fr 25%;grid-template-rows:1fr 31%;gap:1vw}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,.18)}
+.weather{grid-column:1;grid-row:1}.news{grid-column:2;grid-row:1}.right{grid-column:3;grid-row:1;display:grid;grid-template-rows:43% 57%;gap:1vw;background:none;border:0;box-shadow:none}
+.bottom-left{grid-column:1;grid-row:2}.clock{grid-column:2;grid-row:2}.bottom-right{grid-column:3;grid-row:2}
+.weatherTop{height:45%;padding:1.3vw;background:linear-gradient(145deg,#0f91f1,#1274d5 55%,#0b4f9d)}
+.city{font-size:clamp(18px,1.65vw,29px);font-weight:650}.condition{color:#d9efff;font-size:clamp(14px,1.1vw,19px);margin-top:3px}.weatherIcon{font-size:clamp(50px,5vw,90px);text-align:right;margin-top:-8px}.temp{font-size:clamp(55px,5.7vw,100px);font-weight:250;line-height:.8}.hi{font-size:clamp(12px,1vw,17px);margin-top:12px;color:#d9efff}
+.stats{height:55%;padding:1vw;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;background:rgba(10,20,34,.85)}
+.stat{padding:10px;border-radius:8px;background:rgba(255,255,255,.035)}.statLabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}.statValue{font-size:clamp(19px,1.6vw,29px);margin-top:8px}.statSmall{font-size:11px;color:var(--muted);margin-top:4px}
+.newsHead{height:15%;display:flex;align-items:center;gap:12px;padding:0 1.2vw;border-bottom:1px solid var(--line)}.chip{width:28px;height:28px;border-radius:7px;background:#24e887;color:#06120c;display:grid;place-items:center;font-weight:900}.newsTitle{font-size:clamp(18px,1.6vw,28px);font-weight:750;color:#45ef95;letter-spacing:.03em}.dots{margin-left:auto;display:flex;gap:7px}.dot{width:10px;height:10px;border-radius:50%;background:#596777}.dot.on{background:#52ee98}
+.newsList{padding:.2vw 1.2vw}.story{display:grid;grid-template-columns:5px 1fr;gap:12px;padding:1.05vw 0;border-bottom:1px solid var(--line)}.bar{background:#52ef98;border-radius:4px}.storyText{font-size:clamp(17px,1.55vw,29px);font-weight:600;line-height:1.13}.source{font-size:11px;color:#718093;margin-top:7px}
+.calendar{padding:1vw}.month{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:clamp(16px,1.2vw,21px);margin-bottom:8px}.cal{width:100%;border-collapse:collapse;text-align:center;font-size:clamp(11px,.95vw,15px)}.cal th{color:#728091;font-weight:500;padding:4px}.cal td{padding:4px 0;color:#dfe5eb}.today{background:#ff4e4e!important;color:white!important;border-radius:50%;font-weight:800}.eventDot:after{content:"";display:inline-block;width:4px;height:4px;border-radius:50%;background:#57f19b;vertical-align:middle;margin-left:2px}
+.next{padding:1vw;background:var(--panel2)}.label{font-size:11px;letter-spacing:.14em;color:#54e99a;font-weight:700}.count{font-size:clamp(30px,3vw,55px);font-weight:750;color:#a477ff;margin-top:12px}.eventName{font-size:clamp(13px,1.1vw,18px);font-weight:650}.eventTime{font-size:12px;color:var(--muted);margin-top:8px}
+.air{padding:1vw}.airHead{display:flex;justify-content:space-between}.airVal{font-size:clamp(42px,4vw,75px);font-weight:250;margin-top:15px}.airDesc{color:var(--muted)}
+.clock{display:flex;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(145deg,rgba(22,34,48,.9),rgba(11,18,28,.92))}.bigClock{font-size:clamp(65px,7.5vw,135px);font-weight:200;letter-spacing:-.055em;line-height:1}.clockDate{font-size:clamp(15px,1.5vw,26px);color:#e4e8ec;margin-top:15px}.quote{font-size:clamp(13px,1.05vw,18px);color:#9baaba;margin-top:18px;text-align:center;max-width:75%}
+.reminders{padding:1vw}.remTitle{font-size:clamp(15px,1.2vw,21px);font-weight:750;color:#ffb629;display:flex;gap:8px}.rem{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:clamp(13px,1vw,17px)}.circle{width:13px;height:13px;border:2px solid #4d9fff;border-radius:50%;flex:none}.due{color:#ff5656;font-size:10px;margin-left:auto}
+#night{display:none;position:fixed;inset:0;background:#010203;z-index:50;align-items:center;justify-content:center;flex-direction:column}.nightTime{font-size:clamp(90px,16vw,230px);font-weight:150;color:#c9c9c9;letter-spacing:-.06em}.nightAlarm{color:#555;font-size:clamp(14px,1.4vw,22px);margin-top:2vh}
+#gear{position:fixed;right:12px;bottom:10px;z-index:100;border:0;background:rgba(0,0,0,.4);color:#fff;width:35px;height:35px;border-radius:50%;opacity:.35}#settings{display:none;position:fixed;z-index:99;right:15px;bottom:55px;width:min(430px,90vw);max-height:85vh;overflow:auto;background:#111a26;color:#fff;border:1px solid #344253;border-radius:16px;padding:18px;box-shadow:0 20px 60px #000}#settings h3{margin:0 0 12px}label{display:block;font-size:11px;color:#9eabba;margin:10px 0 4px}input,textarea{width:100%;border:1px solid #344253;border-radius:8px;background:#1c2837;color:#fff;padding:9px}textarea{min-height:65px}.save{margin-top:12px;width:100%;border:0;border-radius:8px;padding:10px;background:#fff;color:#111;font-weight:700}
+@media(max-width:800px){#app{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr}.news{grid-column:1/-1;grid-row:2}.right{grid-column:1;grid-row:1}.weather{grid-column:1;grid-row:1}.clock{grid-column:1/-1;grid-row:3}.bottom-left,.bottom-right{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+ <section class="panel weather">
+  <div class="weatherTop"><div class="city" id="city">Minneapolis</div><div class="condition" id="condition">Loading…</div><div class="weatherIcon" id="weatherIcon">⛅</div><div class="temp" id="temp">--°</div><div class="hi" id="hi">↑ H:--° ↓ L:--°</div></div>
+  <div class="stats">
+   <div class="stat"><div class="statLabel">Feels like</div><div class="statValue" id="feels">--°</div></div>
+   <div class="stat"><div class="statLabel">Rain</div><div class="statValue" id="rain">--%</div></div>
+   <div class="stat"><div class="statLabel">Wind</div><div class="statValue" id="wind">--</div><div class="statSmall">mph</div></div>
+   <div class="stat"><div class="statLabel">Humidity</div><div class="statValue" id="humidity">--%</div></div>
+  </div>
+ </section>
+
+ <section class="panel news">
+  <div class="newsHead"><div class="chip">▣</div><div class="newsTitle">TECH</div><div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+  <div class="newsList" id="newsList"><div class="story"><div class="bar"></div><div class="storyText">Loading live technology headlines…</div></div></div>
+ </section>
+
+ <div class="right">
+  <section class="panel calendar"><div class="month"><span id="month"></span><span>▣</span></div><table class="cal"><thead><tr><th>S</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th></tr></thead><tbody id="calBody"></tbody></table></section>
+  <section class="panel next"><div class="label">● NEXT EVENT</div><div class="count" id="count">—</div><div class="eventName" id="eventName">No event configured</div><div class="eventTime" id="eventTime"></div></section>
+ </div>
+
+ <section class="panel air bottom-left"><div class="airHead"><div class="label">▦ &nbsp; AIR QUALITY</div><div id="airCity">Minneapolis</div></div><div class="airVal" id="aqi">--</div><div class="airDesc" id="aqiDesc">Loading…</div><div class="statSmall" id="pm">PM2.5: -- µg/m³</div></section>
+
+ <section class="panel clock"><div class="bigClock" id="bigClock">--:--</div><div class="clockDate" id="clockDate"></div><div class="quote" id="quote"></div></section>
+
+ <section class="panel reminders bottom-right"><div class="remTitle">☷ &nbsp; REMINDERS</div><div id="remList"></div></section>
+</div>
+
+<div id="night"><div class="nightTime" id="nightTime"></div><div class="nightAlarm" id="nightAlarm">Alarm · 7:00 AM</div></div>
+<button id="gear" onclick="toggleSettings()">⚙</button>
+<div id="settings">
+ <h3>Room Dashboard</h3>
+ <label>City</label><input id="sCity" value="Minneapolis">
+ <label>Latitude</label><input id="sLat" value="44.9778">
+ <label>Longitude</label><input id="sLon" value="-93.2650">
+ <label>Night mode start (24h)</label><input id="sNightStart" type="number" value="22">
+ <label>Night mode end (24h)</label><input id="sNightEnd" type="number" value="7">
+ <label>Alarm</label><input id="sAlarm" value="7:00 AM">
+ <label>Events — one per line: ISO datetime | event name</label><textarea id="sEvents"></textarea>
+ <label>Reminders — one per line</label><textarea id="sReminders"></textarea>
+ <button class="save" onclick="save()">Save & reload</button>
+</div>
+
+<script>
+const defaults={city:"Minneapolis",lat:44.9778,lon:-93.2650,nightStart:22,nightEnd:7,alarm:"7:00 AM",events:[],reminders:["Practice guitar","Laundry","Check tomorrow's schedule"]};
+let cfg=Object.assign(defaults,JSON.parse(localStorage.getItem("roomOS")||"{}"));
+const $=id=>document.getElementById(id);
+
+function toggleSettings(){let x=$("settings");x.style.display=x.style.display==="block"?"none":"block";loadForm()}
+function loadForm(){$("sCity").value=cfg.city;$("sLat").value=cfg.lat;$("sLon").value=cfg.lon;$("sNightStart").value=cfg.nightStart;$("sNightEnd").value=cfg.nightEnd;$("sAlarm").value=cfg.alarm;$("sEvents").value=cfg.events.join("\n");$("sReminders").value=cfg.reminders.join("\n")}
+function save(){cfg={city:$("sCity").value||"Minneapolis",lat:+$("sLat").value||44.9778,lon:+$("sLon").value||-93.2650,nightStart:+$("sNightStart").value,nightEnd:+$("sNightEnd").value,alarm:$("sAlarm").value||"7:00 AM",events:$("sEvents").value.split("\n").map(x=>x.trim()).filter(Boolean),reminders:$("sReminders").value.split("\n").map(x=>x.trim()).filter(Boolean)};localStorage.setItem("roomOS",JSON.stringify(cfg));location.reload()}
+
+const q=["Make room for the life you want.","Small progress is still progress.","Consistency beats intensity.","Do something today your future self will thank you for.","Build the life you don't need a vacation from.","One good day can change a lot."];
+$("quote").textContent="“"+q[Math.floor(Date.now()/86400000)%q.length]+"”";
+
+function tick(){
+ const n=new Date(),t=n.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+ $("bigClock").textContent=t;$("nightTime").textContent=n.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+ $("clockDate").textContent=n.toLocaleDateString([], {weekday:"long",day:"numeric",month:"long",year:"numeric"});
+ $("nightAlarm").textContent="Alarm · "+cfg.alarm;
+ const h=n.getHours(), night=cfg.nightStart>cfg.nightEnd?(h>=cfg.nightStart||h<cfg.nightEnd):(h>=cfg.nightStart&&h<cfg.nightEnd);
+ $("night").style.display=night?"flex":"none"; updateCountdown(n)
+}
+setInterval(tick,1000);tick();
+
+function calendar(){
+ const n=new Date(),y=n.getFullYear(),m=n.getMonth(),first=new Date(y,m,1).getDay(),last=new Date(y,m+1,0).getDate();
+ $("month").textContent=n.toLocaleDateString([], {month:"long",year:"numeric"});
+ let out="",d=1;for(let r=0;r<6;r++){out+="<tr>";for(let c=0;c<7;c++){if((r===0&&c<first)||d>last)out+="<td></td>";else{let cls=d===n.getDate()?"today":"";out+=`<td class="${cls}">${d}</td>`;d++}}out+="</tr>";if(d>last)break}$("calBody").innerHTML=out
+}
+calendar();
+
+function updateCountdown(now){
+ let upcoming=cfg.events.map(x=>{let [dt,name]=x.split("|");return {dt:new Date(dt.trim()),name:(name||"Event").trim()}}).filter(e=>!isNaN(e.dt)&&e.dt>now).sort((a,b)=>a.dt-b.dt)[0];
+ if(!upcoming){$("count").textContent="—";$("eventName").textContent="No upcoming event";$("eventTime").textContent="";return}
+ let ms=upcoming.dt-now,total=Math.floor(ms/1000),days=Math.floor(total/86400),hrs=Math.floor(total%86400/3600),mins=Math.floor(total%3600/60);
+ $("count").textContent=days?`in ${days}d`:hrs?`in ${hrs}h`:mins?`in ${mins}m`:"now";
+ $("eventName").textContent=upcoming.name;$("eventTime").textContent=upcoming.dt.toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})
+}
+$("remList").innerHTML=cfg.reminders.map(x=>`<div class="rem"><span class="circle"></span><span>${x}</span></div>`).join("");
+
+function icon(c){if(c===0)return"☀️";if([1,2].includes(c))return"⛅";if(c===3)return"☁️";if([45,48].includes(c))return"🌫️";if([51,53,55,56,57].includes(c))return"🌦️";if([61,63,65,80,81,82].includes(c))return"🌧️";if([71,73,75,77,85,86].includes(c))return"🌨️";if([95,96,99].includes(c))return"⛈️";return"🌡️"}
+function desc(c){return {0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Drizzle",53:"Drizzle",55:"Drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Rain showers",81:"Rain showers",82:"Heavy showers",85:"Snow showers",86:"Heavy snow",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"}[c]||"Weather"}
+async function weather(){
+ try{
+  const u=`https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
+  const d=await fetch(u,{cache:"no-store"}).then(r=>r.json()),c=d.current;
+  $("city").textContent=cfg.city;$("condition").textContent=desc(c.weather_code);$("weatherIcon").textContent=icon(c.weather_code);$("temp").textContent=Math.round(c.temperature_2m)+"°";
+  $("hi").textContent=`↑ H:${Math.round(d.daily.temperature_2m_max[0])}°  ↓ L:${Math.round(d.daily.temperature_2m_min[0])}°`;
+  $("feels").textContent=Math.round(c.apparent_temperature)+"°";$("rain").textContent=(d.daily.precipitation_probability_max[0]??0)+"%";$("wind").textContent=Math.round(c.wind_speed_10m);$("humidity").textContent=c.relative_humidity_2m+"%";
+ }catch(e){$("condition").textContent="Weather unavailable"}
+}
+async function air(){
+ try{
+  const u=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${cfg.lat}&longitude=${cfg.lon}&current=us_aqi,pm2_5&timezone=auto`;
+  const d=await fetch(u,{cache:"no-store"}).then(r=>r.json()),a=d.current.us_aqi,p=d.current.pm2_5;
+  $("aqi").textContent=Math.round(a);$("pm").textContent="PM2.5: "+p.toFixed(1)+" µg/m³";$("aqiDesc").textContent=a<=50?"Good":a<=100?"Moderate":a<=150?"Unhealthy for sensitive groups":a<=200?"Unhealthy":"Very unhealthy";
+ }catch(e){$("aqi").textContent="--";$("aqiDesc").textContent="Unavailable"}
+}
+async function tech(){
+ try{
+  const d=await fetch("https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=5",{cache:"no-store"}).then(r=>r.json());
+  $("newsList").innerHTML=d.hits.slice(0,5).map(h=>`<div class="story"><div class="bar"></div><div><div class="storyText">${escape(h.title||"Untitled")}</div><div class="source">Hacker News · live</div></div></div>`).join("");
+ }catch(e){$("newsList").innerHTML="<div class='story'><div class='bar'></div><div class='storyText'>Live tech feed unavailable right now.</div></div>"}
+}
+function escape(s){return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+weather();air();tech();setInterval(weather,5*60*1000);setInterval(air,5*60*1000);setInterval(tech,10*60*1000);
+</script>
+</body>
+</html>
