@@ -1274,7 +1274,7 @@ function setupMiscControls(){
     const url = normalizeCalendarUrl($("#apple-calendar-url").value);
     if(!url){ setCalendarStatus("Paste an Apple published calendar link first","error"); return; }
     settings.appleCalendar.url = url;
-    settings.appleCalendar.proxyUrl = $("apple-calendar-proxy").value.trim();
+    settings.appleCalendar.proxyUrl = $("#apple-calendar-proxy")?.value?.trim();
     settings.appleCalendar.enabled = true;
     saveSettings();
     setCalendarStatus("Syncing…");
