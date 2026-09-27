@@ -248,8 +248,10 @@ function defaultSettings(){
     weatherMetrics: { feelsLike:true, rain:true, wind:true, humidity:true, pressure:false, uv:false, precip:false },
     newsCategories: { tech:true, business:true, science:true, us:false, world:false, automotive:false, sports:false },
     newsSources: { hn:true, techcrunch:true, arstechnica:false, theverge:false, mit:false, cnbc:true, googlebiz:false, nasa:true, space:true, googlesci:false, googleus:false, googleworld:false, googleauto:false, googlesports:false },
-    newsCount: 6,
+    newsCount: 10,
     newsRefreshMinutes: 10,
+    newsHeadlinesPerPage: 5,
+    newsAutoRotate: true,
     appleCalendar: { enabled:false, url:"", refreshMinutes:15, proxyUrl:"" },
     appleCalendarEvents: [],
     calendarEvents: [
@@ -291,6 +293,8 @@ function loadSettings(){
       newsSources: Object.assign({}, def.newsSources, parsed.newsSources),
       newsCount: parsed.newsCount || def.newsCount,
       newsRefreshMinutes: parsed.newsRefreshMinutes || def.newsRefreshMinutes,
+      newsHeadlinesPerPage: parsed.newsHeadlinesPerPage || def.newsHeadlinesPerPage,
+      newsAutoRotate: parsed.newsAutoRotate !== undefined ? !!parsed.newsAutoRotate : def.newsAutoRotate,
       appleCalendar: Object.assign({}, def.appleCalendar, parsed.appleCalendar),
       appleCalendarEvents: Array.isArray(parsed.appleCalendarEvents) ? parsed.appleCalendarEvents : def.appleCalendarEvents,
       calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : def.calendarEvents,
@@ -352,6 +356,11 @@ const el = {
 
   newsList: $("#news-list"),
   freshNews: $("#fresh-news"),
+  newsCategoryTitle: $("#news-category-title"),
+  newsCategoryStrip: $("#news-category-strip"),
+  newsPageIndicator: $("#news-page-indicator"),
+  newsPrev: $("#news-prev"),
+  newsNext: $("#news-next"),
 
   calTitle: $("#calendar-title"),
   calWeekdays: $("#calendar-weekdays"),
@@ -644,104 +653,63 @@ function activeNewsSources(){
   return NEWS_SOURCES.filter(s => settings.newsCategories[s.category] && settings.newsSources[s.id]);
 }
 
-async function fetchHN(source){
-  const idsRes = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
-  if(!idsRes.ok) throw new Error("hn list failed");
-  const ids = (await idsRes.json()).slice(0, 8);
-  const items = await Promise.all(ids.map(async id => {
-    try{
-      const r = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-      const item = await r.json();
-      return {
-        title: item.title,
-        url: item.url || `https://news.ycombinator.com/item?id=${id}`,
-        source: source.name,
-        date: (item.time || 0) * 1000
-      };
-    }catch(e){ return null; }
-  }));
-  return items.filter(Boolean);
+let newsByCategory = {};
+let newsCategoryIndex = 0;
+let newsPageIndex = 0;
+let newsRotationTimer = null;
+let newsTouchStartX = null;
+
+function enabledNewsCategories(){
+  const available = new Set(activeNewsSources().map(s => s.category));
+  return NEWS_CATEGORIES.filter(c => settings.newsCategories[c.key] && available.has(c.key));
 }
 
-function feedProxyEndpoint(path, targetUrl){
-  const configured = (settings.appleCalendar.proxyUrl || FEED_PROXY_FALLBACK || "").trim();
-  if(!configured) throw new Error("Set the Cloudflare Worker URL in Settings → Calendar");
-  const proxyUrl = new URL(configured);
-  // Reuse the same Cloudflare Worker used for Apple Calendar.
-  // If the user saved /calendar, replace it with /rss for news.
-  if(!proxyUrl.pathname || proxyUrl.pathname === "/" || proxyUrl.pathname === "/calendar" || proxyUrl.pathname === "/rss") {
-    proxyUrl.pathname = path;
-  }
-  proxyUrl.searchParams.set("url", targetUrl);
-  return proxyUrl.toString();
+function newsPageDurationMs(){
+  const categories = Math.max(1, enabledNewsCategories().length);
+  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / Math.max(1, settings.newsHeadlinesPerPage || 5)));
+  return Math.max(15000, Math.round((settings.newsRefreshMinutes * 60000) / categories / pages));
 }
 
-async function fetchRSS(source){
-  const endpoint = feedProxyEndpoint("/rss", source.url);
-  const res = await fetch(endpoint,{cache:"no-store"});
-  if(!res.ok) throw new Error("rss http " + res.status);
-  const text = await res.text();
-  const xml = new DOMParser().parseFromString(text, "application/xml");
-  if(xml.querySelector("parsererror")) throw new Error("rss parse error");
-  const items = Array.from(xml.querySelectorAll("item")).slice(0, 10);
-  return items.map(item => {
-    const title = (item.querySelector("title")?.textContent || "").trim();
-    const link = (item.querySelector("link")?.textContent || "").trim();
-    const pubDate = item.querySelector("pubDate")?.textContent;
-    const date = pubDate ? new Date(pubDate).getTime() : Date.now();
-    return { title, url: link, source: source.name, date: isNaN(date) ? Date.now() : date };
-  }).filter(i => i.title);
-}
-
-async function refreshNews(){
-  const sources = activeNewsSources();
-  if(sources.length === 0){
-    el.newsList.innerHTML = `<div class="news-empty">No categories or sources enabled. Choose some in settings.</div>`;
-    el.freshNews.textContent = "—";
+function renderNewsNavigation(){
+  const cats = enabledNewsCategories();
+  if(!cats.length){
+    el.newsCategoryTitle.textContent = "Live news";
+    el.newsCategoryStrip.innerHTML = "";
+    el.newsPageIndicator.textContent = "—";
     return;
   }
+  if(newsCategoryIndex >= cats.length) newsCategoryIndex = 0;
+  const cat = cats[newsCategoryIndex];
+  const items = newsByCategory[cat.key] || [];
+  const perPage = Math.max(1, settings.newsHeadlinesPerPage || 5);
+  const pages = Math.max(1, Math.ceil(items.length / perPage));
+  if(newsPageIndex >= pages) newsPageIndex = 0;
+  el.newsCategoryTitle.textContent = cat.label;
+  el.newsCategoryStrip.innerHTML = cats.map((c,i)=>`<span class="news-category-pill ${i===newsCategoryIndex?'active':''}">${c.label}</span>`).join("");
+  el.newsPageIndicator.textContent = `${newsPageIndex+1}/${pages}`;
+}
 
-  const results = await Promise.allSettled(sources.map(s => s.kind === "hn" ? fetchHN(s) : fetchRSS(s)));
-  let items = [];
-  let anySucceeded = false;
-  results.forEach(r => {
-    if(r.status === "fulfilled"){
-      anySucceeded = true;
-      items = items.concat(r.value);
-    }
-  });
-
-  if(anySucceeded){
-    items.sort((a,b) => b.date - a.date);
-    items = items.slice(0, settings.newsCount);
-    newsCacheSet(items);
-    renderNews(items, Date.now());
-  }else{
-    const cached = newsCacheGet();
-    if(cached && cached.items && cached.items.length){
-      renderNews(cached.items, cached.ts);
-    }else{
-      el.newsList.innerHTML = `<div class="news-empty">Couldn't load news right now. It will retry automatically.</div>`;
-      el.freshNews.textContent = "—";
-    }
+function renderCurrentNewsPage(ts){
+  const cats = enabledNewsCategories();
+  if(!cats.length){
+    el.newsList.innerHTML = `<div class="news-empty">No categories or sources enabled. Choose some in settings.</div>`;
+    el.freshNews.textContent = "—";
+    renderNewsNavigation();
+    return;
   }
-}
-
-function timeAgo(ts){
-  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
-  if(mins < 1) return "just now";
-  if(mins < 60) return mins + "m ago";
-  const hrs = Math.round(mins/60);
-  if(hrs < 24) return hrs + "h ago";
-  return Math.round(hrs/24) + "d ago";
-}
-
-function renderNews(items, ts){
+  renderNewsNavigation();
+  const cat = cats[newsCategoryIndex];
+  const items = newsByCategory[cat.key] || [];
+  const perPage = Math.max(1, settings.newsHeadlinesPerPage || 5);
+  const start = newsPageIndex * perPage;
+  const pageItems = items.slice(start, start + perPage);
   el.newsList.innerHTML = "";
-  if(!items.length){
-    el.newsList.innerHTML = `<div class="news-empty">No headlines available.</div>`;
+  const page = document.createElement("div");
+  page.className = "news-page";
+  if(!pageItems.length){
+    page.innerHTML = `<div class="news-empty">No headlines available for this category.</div>`;
   }
-  items.forEach(item => {
+  pageItems.forEach(item => {
     const div = document.createElement("div");
     div.className = "news-item";
     const a = document.createElement("a");
@@ -753,11 +721,112 @@ function renderNews(items, ts){
     const meta = document.createElement("div");
     meta.className = "news-meta";
     meta.innerHTML = `<span class="news-source">${item.source}</span><span>${timeAgo(item.date)}</span>`;
-    div.appendChild(a);
-    div.appendChild(meta);
-    el.newsList.appendChild(div);
+    div.appendChild(a); div.appendChild(meta); page.appendChild(div);
   });
+  el.newsList.appendChild(page);
   el.freshNews.textContent = freshnessLabel(ts);
+}
+
+function moveNews(delta){
+  const cats = enabledNewsCategories();
+  if(!cats.length) return;
+  if(delta !== 0){
+    if(delta === 1 && newsPageIndex < Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, settings.newsHeadlinesPerPage||5)) - 1)){
+      newsPageIndex++;
+    }else if(delta === -1 && newsPageIndex > 0){
+      newsPageIndex--;
+    }else{
+      newsCategoryIndex = (newsCategoryIndex + (delta > 0 ? 1 : -1) + cats.length) % cats.length;
+      newsPageIndex = delta > 0 ? 0 : Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, settings.newsHeadlinesPerPage||5)) - 1);
+    }
+  }
+  renderCurrentNewsPage(lastNewsTimestamp || Date.now());
+  restartNewsRotationTimer();
+}
+
+function restartNewsRotationTimer(){
+  if(newsRotationTimer) clearInterval(newsRotationTimer);
+  if(!settings.newsAutoRotate) return;
+  newsRotationTimer = setInterval(()=>moveNews(1), newsPageDurationMs());
+}
+
+async function fetchHN(source){
+  const idsRes = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
+  if(!idsRes.ok) throw new Error("hn list failed");
+  const ids = (await idsRes.json()).slice(0, 12);
+  const items = await Promise.all(ids.map(async id => {
+    try{
+      const r = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+      const item = await r.json();
+      return { title:item.title, url:item.url||`https://news.ycombinator.com/item?id=${id}`, source:source.name, date:(item.time||0)*1000, category:source.category };
+    }catch(e){ return null; }
+  }));
+  return items.filter(Boolean);
+}
+
+function feedProxyEndpoint(path, targetUrl){
+  const configured = (settings.appleCalendar.proxyUrl || FEED_PROXY_FALLBACK || "").trim();
+  if(!configured) throw new Error("Set the Cloudflare Worker URL in Settings → Calendar");
+  const proxyUrl = new URL(configured);
+  if(!proxyUrl.pathname || proxyUrl.pathname === "/" || proxyUrl.pathname === "/calendar" || proxyUrl.pathname === "/rss") proxyUrl.pathname = path;
+  proxyUrl.searchParams.set("url", targetUrl);
+  return proxyUrl.toString();
+}
+
+async function fetchRSS(source){
+  const endpoint = feedProxyEndpoint("/rss", source.url);
+  const res = await fetch(endpoint,{cache:"no-store"});
+  if(!res.ok) throw new Error("rss http " + res.status);
+  const text = await res.text();
+  const xml = new DOMParser().parseFromString(text,"application/xml");
+  if(xml.querySelector("parsererror")) throw new Error("rss parse error");
+  return Array.from(xml.querySelectorAll("item")).slice(0, 12).map(item=>{
+    const title=(item.querySelector("title")?.textContent||"").trim();
+    const link=(item.querySelector("link")?.textContent||"").trim();
+    const pubDate=item.querySelector("pubDate")?.textContent;
+    const date=pubDate?new Date(pubDate).getTime():Date.now();
+    return {title,url:link,source:source.name,date:isNaN(date)?Date.now():date,category:source.category};
+  }).filter(i=>i.title);
+}
+
+let lastNewsTimestamp = Date.now();
+async function refreshNews(){
+  const sources = activeNewsSources();
+  if(sources.length === 0){
+    newsByCategory = {}; renderCurrentNewsPage(Date.now()); return;
+  }
+  const results = await Promise.allSettled(sources.map(s=>s.kind==="hn"?fetchHN(s):fetchRSS(s)));
+  const grouped = {};
+  let anySucceeded=false;
+  results.forEach(r=>{
+    if(r.status==="fulfilled"){
+      anySucceeded=true;
+      r.value.forEach(item=>{ (grouped[item.category] ||= []).push(item); });
+    }
+  });
+  if(anySucceeded){
+    Object.keys(grouped).forEach(k=>{
+      const seen=new Set();
+      grouped[k]=grouped[k].sort((a,b)=>b.date-a.date).filter(x=>{const key=x.title.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).slice(0,settings.newsCount||10);
+    });
+    newsByCategory=grouped;
+    lastNewsTimestamp=Date.now();
+    newsCacheSet(Object.values(grouped).flat().map(x=>x));
+  }else{
+    const cached=newsCacheGet();
+    if(cached?.items?.length){
+      const groupedCached={};
+      cached.items.forEach(x=>(groupedCached[x.category||"tech"] ||= []).push(x));
+      newsByCategory=groupedCached; lastNewsTimestamp=cached.ts;
+    }
+  }
+  renderCurrentNewsPage(lastNewsTimestamp);
+  restartNewsRotationTimer();
+}
+
+function timeAgo(ts){
+  const mins=Math.max(0,Math.round((Date.now()-ts)/60000));
+  if(mins<1)return "just now"; if(mins<60)return mins+"m ago"; const hrs=Math.round(mins/60); if(hrs<24)return hrs+"h ago"; return Math.round(hrs/24)+"d ago";
 }
 
 /* --------------------------------------------------------------------
@@ -1158,6 +1227,8 @@ function renderSettingsStaticLists(){
 
   $("#news-count").value = settings.newsCount;
   $("#news-refresh").value = settings.newsRefreshMinutes;
+  $("#news-headlines-per-page").value = settings.newsHeadlinesPerPage;
+  $("#news-auto-rotate").checked = settings.newsAutoRotate;
   $("#apple-calendar-url").value = settings.appleCalendar.url || "";
   $("#apple-calendar-proxy").value = settings.appleCalendar.proxyUrl || "";
   setCalendarStatus(settings.appleCalendar.enabled && settings.appleCalendar.url ? "Connected · tap Sync to refresh" : "Not connected", settings.appleCalendar.enabled && settings.appleCalendar.url ? "ok" : "");
@@ -1304,7 +1375,25 @@ function setupMiscControls(){
     settings.newsRefreshMinutes = Math.max(5, Number(e.target.value) || 10);
     saveSettings();
     restartNewsTimer();
+    restartNewsRotationTimer();
   });
+  $("#news-headlines-per-page").addEventListener("change", (e) => {
+    settings.newsHeadlinesPerPage = Math.max(3, Math.min(8, Number(e.target.value) || 5));
+    saveSettings(); newsPageIndex = 0; renderCurrentNewsPage(lastNewsTimestamp); restartNewsRotationTimer();
+  });
+  $("#news-auto-rotate").addEventListener("change", (e) => {
+    settings.newsAutoRotate = e.target.checked; saveSettings(); restartNewsRotationTimer();
+  });
+
+  el.newsPrev.addEventListener("click", () => moveNews(-1));
+  el.newsNext.addEventListener("click", () => moveNews(1));
+  el.newsList.addEventListener("touchstart", e => { newsTouchStartX = e.changedTouches[0].clientX; }, {passive:true});
+  el.newsList.addEventListener("touchend", e => {
+    if(newsTouchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - newsTouchStartX;
+    if(Math.abs(dx) > 45) moveNews(dx < 0 ? 1 : -1);
+    newsTouchStartX = null;
+  }, {passive:true});
 
   $("#sync-apple-calendar-btn").addEventListener("click", async () => {
     const url = normalizeCalendarUrl($("#apple-calendar-url").value);
@@ -1382,6 +1471,7 @@ let newsTimer = null;
 function restartNewsTimer(){
   if(newsTimer) clearInterval(newsTimer);
   newsTimer = setInterval(refreshNews, settings.newsRefreshMinutes * 60000);
+  restartNewsRotationTimer();
 }
 
 function refreshAll(){

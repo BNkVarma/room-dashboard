@@ -285,16 +285,27 @@ body{
 
 /* ---------- News card ---------- */
 
+.news-head{ align-items:center; }
+.news-heading-wrap{ display:flex; align-items:center; gap:6px; min-width:0; }
+.news-heading-wrap .card-title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.news-nav{ width:28px; height:28px; border:0; border-radius:8px; background:var(--bg-elevated); color:var(--text-primary); font-size:24px; line-height:1; cursor:pointer; }
+.news-nav:active{ transform:scale(.96); }
+.news-status{ margin-left:auto; display:flex; align-items:center; gap:10px; color:var(--text-tertiary); font-size:12px; }
+.news-category-strip{ display:flex; gap:7px; overflow:hidden; padding:0 0 8px; }
+.news-category-pill{ flex:0 0 auto; padding:5px 9px; border-radius:999px; border:1px solid var(--card-border); color:var(--text-tertiary); font-size:11px; }
+.news-category-pill.active{ color:var(--text-primary); border-color:var(--accent-amber); background:rgba(255,183,77,.08); }
 .news-list{
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  scrollbar-width: none;
 }
 .news-list::-webkit-scrollbar{ display: none; }
+.news-page{ min-height:0; height:100%; display:flex; flex-direction:column; }
+.news-item{ flex:1 1 0; min-height:0; padding:9px 0; border-bottom:1px solid var(--card-border); display:flex; flex-direction:column; justify-content:center; gap:4px; }
+.news-item:last-child{ border-bottom:none; }
 
 .news-empty{
   color: var(--text-tertiary);
@@ -302,32 +313,8 @@ body{
   padding: 10px 0;
 }
 
-.news-item{
-  padding: 12px 0;
-  border-bottom: 1px solid var(--card-border);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.news-item:last-child{ border-bottom: none; }
-
-.news-title{
-  font-size: 15.5px;
-  line-height: 1.35;
-  color: var(--text-primary);
-  font-weight: 500;
-  text-decoration: none;
-  display: block;
-}
-
-.news-meta{
-  display: flex;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--text-tertiary);
-}
-
-.news-source{ color: var(--accent-amber); font-weight: 600; }
+.check-inline{ display:flex; align-items:center; gap:8px; margin:10px 0; color:var(--text-secondary); font-size:13px; }
+.check-inline input{ width:auto; }
 
 /* ---------- Clock card ---------- */
 
