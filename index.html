@@ -105,8 +105,13 @@
   <section class="col col-right">
 
     <article class="card card-calendar" id="card-calendar" data-card="calendar">
-      <header class="card-head">
-        <h2 class="card-title" id="calendar-title">Calendar</h2>
+      <header class="card-head calendar-head">
+        <div class="calendar-title-wrap">
+          <button class="calendar-nav" id="calendar-prev" aria-label="Previous month">‹</button>
+          <h2 class="card-title" id="calendar-title">Calendar</h2>
+          <button class="calendar-nav" id="calendar-next" aria-label="Next month">›</button>
+        </div>
+        <span class="calendar-hint">swipe</span>
       </header>
       <div class="calendar-weekdays" id="calendar-weekdays"></div>
       <div class="calendar-grid" id="calendar-grid"></div>

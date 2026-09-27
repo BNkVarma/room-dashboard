@@ -365,6 +365,8 @@ const el = {
   calTitle: $("#calendar-title"),
   calWeekdays: $("#calendar-weekdays"),
   calGrid: $("#calendar-grid"),
+  calPrev: $("#calendar-prev"),
+  calNext: $("#calendar-next"),
   upcomingEventsList: $("#upcoming-events-list"),
   eventCount: $("#event-count"),
 
@@ -417,8 +419,21 @@ function isNightNow(now){
 
 let forcedNightPreview = false;
 
+function updateAmbientTimeClass(){
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes()/60;
+  let timeClass = "time-day";
+  if(hour >= 5.5 && hour < 7.5) timeClass = "time-dawn";
+  else if(hour >= 7.5 && hour < 17.5) timeClass = "time-day";
+  else if(hour >= 17.5 && hour < 20.5) timeClass = "time-dusk";
+  else timeClass = "time-night";
+  el.ambient.classList.remove("time-dawn","time-day","time-dusk","time-night");
+  el.ambient.classList.add(timeClass);
+}
+
 function tickClock(){
   const now = new Date();
+  updateAmbientTimeClass();
 
   const timeStr = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dateStr = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -505,8 +520,14 @@ function renderWeather(json, fromCacheTs){
   // ambient background
   const hour = new Date().getHours();
   const nightHours = hour >= 21 || hour < 6;
+  const localHour = new Date().getHours() + new Date().getMinutes()/60;
+  let timeClass = "time-day";
+  if(localHour >= 5.5 && localHour < 7.5) timeClass = "time-dawn";
+  else if(localHour >= 7.5 && localHour < 17.5) timeClass = "time-day";
+  else if(localHour >= 17.5 && localHour < 20.5) timeClass = "time-dusk";
+  else timeClass = "time-night";
   const bgClass = (nightHours && !isDay) ? "weather-night" : "weather-" + info.bg;
-  el.ambient.className = "ambient " + bgClass;
+  el.ambient.className = `ambient ${bgClass} ${timeClass} ${isDay ? "is-day" : "is-night"}`;
 
   // conditions / metrics grid
   const hourIdx = Math.max(0, json.hourly.time.indexOf(c.time.slice(0,13) + ":00"));
@@ -658,6 +679,8 @@ let newsCategoryIndex = 0;
 let newsPageIndex = 0;
 let newsRotationTimer = null;
 let newsTouchStartX = null;
+let calendarViewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let calendarTouchStartX = null;
 
 function enabledNewsCategories(){
   const available = new Set(activeNewsSources().map(s => s.category));
@@ -1020,8 +1043,9 @@ function sameDate(a, b){
 }
 
 function renderCalendar(){
+  const view = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1);
   const now = new Date();
-  el.calTitle.textContent = now.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  el.calTitle.textContent = view.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   el.calWeekdays.innerHTML = "";
   ["S","M","T","W","T","F","S"].forEach(d => {
@@ -1030,22 +1054,19 @@ function renderCalendar(){
     el.calWeekdays.appendChild(span);
   });
 
-  const year = now.getFullYear(), month = now.getMonth();
+  const year = view.getFullYear(), month = view.getMonth();
   const firstDay = new Date(year, month, 1);
   const startOffset = firstDay.getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
-
   const eventDates = allCalendarEvents().map(e => e.date);
 
   el.calGrid.innerHTML = "";
   const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
-
   for(let i=0; i<totalCells; i++){
     const cell = document.createElement("div");
     cell.className = "cal-day";
     let dayNum, cellDate, muted = false;
-
     if(i < startOffset){
       dayNum = daysInPrevMonth - (startOffset - i - 1);
       cellDate = new Date(year, month-1, dayNum);
@@ -1058,13 +1079,10 @@ function renderCalendar(){
       dayNum = i - startOffset + 1;
       cellDate = new Date(year, month, dayNum);
     }
-
     if(muted) cell.classList.add("muted");
     if(!muted && sameDate(cellDate, now)) cell.classList.add("today");
-
-    const iso = cellDate.toISOString().slice(0,10);
+    const iso = formatLocalDate(cellDate);
     const hasEvent = eventDates.includes(iso);
-
     cell.innerHTML = `<span>${dayNum}</span>`;
     if(hasEvent && !muted){
       const dot = document.createElement("span");
@@ -1073,6 +1091,11 @@ function renderCalendar(){
     }
     el.calGrid.appendChild(cell);
   }
+}
+
+function shiftCalendarMonth(delta){
+  calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth()+delta, 1);
+  renderCalendar();
 }
 
 /* --------------------------------------------------------------------
@@ -1395,6 +1418,16 @@ function setupMiscControls(){
     newsTouchStartX = null;
   }, {passive:true});
 
+  el.calPrev.addEventListener("click", () => shiftCalendarMonth(-1));
+  el.calNext.addEventListener("click", () => shiftCalendarMonth(1));
+  el.calGrid.addEventListener("touchstart", e => { calendarTouchStartX = e.changedTouches[0].clientX; }, {passive:true});
+  el.calGrid.addEventListener("touchend", e => {
+    if(calendarTouchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - calendarTouchStartX;
+    if(Math.abs(dx) > 45) shiftCalendarMonth(dx < 0 ? 1 : -1);
+    calendarTouchStartX = null;
+  }, {passive:true});
+
   $("#sync-apple-calendar-btn").addEventListener("click", async () => {
     const url = normalizeCalendarUrl($("#apple-calendar-url").value);
     if(!url){ setCalendarStatus("Paste an Apple published calendar link first","error"); return; }
@@ -1494,7 +1527,7 @@ function init(){
   tickClock();
   setInterval(tickClock, 1000);
   setInterval(renderNextEvent, 60000);
-  setInterval(() => { document.querySelectorAll(".news-meta span:last-child").length && refreshNewsMeta(); }, 60000);
+  setInterval(() => { if(newsByCategory && Object.keys(newsByCategory).length) renderCurrentNewsPage(lastNewsTimestamp); }, 60000);
 
   setupTabs();
   setupLocationSearch();
@@ -1515,12 +1548,6 @@ function init(){
       renderQuote();
     }
   }, 60000);
-}
-
-function refreshNewsMeta(){
-  // Lightweight re-render of "time ago" labels between fetches without refetching.
-  const cached = newsCacheGet();
-  if(cached && cached.items) renderNews(cached.items, cached.ts);
 }
 
 document.addEventListener("DOMContentLoaded", init);

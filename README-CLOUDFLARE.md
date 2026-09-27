@@ -1,31 +1,25 @@
-# Apple Calendar proxy for Room Dashboard
+# Cloudflare Worker for Room Dashboard
 
-The dashboard is a static GitHub Pages app. Safari cannot reliably fetch an Apple published ICS feed directly because of cross-origin restrictions, so this tiny Cloudflare Worker fetches the public Apple calendar and adds CORS headers.
+Deploy `apple-calendar-worker.js` as a Cloudflare Worker. The dashboard uses the same Worker for:
 
-## Deploy (free)
+- `/calendar?url=...` — Apple iCloud published calendars
+- `/rss?url=...` — configured RSS/news feeds
 
-1. Create/sign in to a Cloudflare account.
-2. Go to **Workers & Pages → Create → Worker**.
-3. Choose **Start from scratch / Hello World**.
-4. Replace the Worker code with `apple-calendar-worker.js` from this folder.
-5. Deploy it.
-6. Your Worker URL will look like:
+## Deploy
 
-   `https://room-dashboard-apple-calendar.YOUR-SUBDOMAIN.workers.dev`
+1. Open Cloudflare Dashboard → Workers & Pages → your existing Worker.
+2. Edit code and replace the Worker code with `apple-calendar-worker.js` from this package.
+3. Deploy.
+4. Keep the Worker URL in Dashboard → Settings → Calendar. Do not put the Apple calendar URL into the code.
 
-7. The dashboard needs the `/calendar` endpoint:
+## RSS reliability
 
-   `https://room-dashboard-apple-calendar.YOUR-SUBDOMAIN.workers.dev/calendar`
+Some publishers, especially Google News, may reject direct requests from Cloudflare Worker IPs. The Worker first tries the source directly, then falls back to two public RSS relays while keeping the browser-to-Worker connection CORS-safe.
 
-8. Open Room Dashboard → Settings → Calendar.
-9. Paste your Apple published calendar URL into **Apple Calendar**.
-10. Paste the Worker `/calendar` URL into **Calendar proxy URL**.
-11. Tap **Sync Apple Calendar**.
+The Worker only accepts hosts on its allowlist, so it is not an unrestricted open proxy.
 
-The Worker is deliberately restricted to HTTPS hosts under `icloud.com`; it is not a general-purpose open proxy.
+## Dashboard settings
 
-Cloudflare's current Free Workers plan includes 100,000 requests/day, which is far beyond what a single iPad dashboard needs. See the official limits/pricing docs for current limits.
+For Apple Calendar, enter your published `webcal://` link in the dashboard UI and enter the Worker URL in the proxy field.
 
-
-### Dashboard proxy URL
-In Settings → Calendar, you may paste either the Worker origin (for example `https://your-worker.workers.dev`) or the full `/calendar` URL. The dashboard automatically adds `/calendar` when only the origin is supplied.
+For news, no separate proxy field is needed; news uses the same saved Worker URL.
