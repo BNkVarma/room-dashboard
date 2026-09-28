@@ -278,6 +278,23 @@ function nextSaturdayISO(){
   return d.toISOString().slice(0,10);
 }
 
+function reviveCalendarEvents(events){
+  if(!Array.isArray(events)) return [];
+  return events.map(ev => {
+    if(!ev || typeof ev !== "object") return null;
+    const out = { ...ev };
+    if(out.start && !(out.start instanceof Date)) {
+      const d = new Date(out.start);
+      if(!Number.isNaN(d.getTime())) out.start = d;
+    }
+    if(out.end && !(out.end instanceof Date)) {
+      const d = new Date(out.end);
+      if(!Number.isNaN(d.getTime())) out.end = d;
+    }
+    return out;
+  }).filter(ev => ev && ev.start instanceof Date && !Number.isNaN(ev.start.getTime()));
+}
+
 function loadSettings(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -296,7 +313,13 @@ function loadSettings(){
       newsHeadlinesPerPage: 3,
       newsAutoRotate: parsed.newsAutoRotate !== undefined ? !!parsed.newsAutoRotate : def.newsAutoRotate,
       appleCalendar: Object.assign({}, def.appleCalendar, parsed.appleCalendar),
-      appleCalendarEvents: Array.isArray(parsed.appleCalendarEvents) ? parsed.appleCalendarEvents : def.appleCalendarEvents,
+      // A saved calendar URL is enough to enable background syncing. This
+      // prevents an older settings record with enabled:false from disabling
+      // automatic refresh after the user already configured the URL.
+      ...(parsed.appleCalendar?.url ? { appleCalendar: Object.assign({}, def.appleCalendar, parsed.appleCalendar, { enabled: true }) } : {}),
+      // localStorage serializes Date objects as strings; revive Apple events
+      // before any code calls Date methods such as getTime().
+      appleCalendarEvents: reviveCalendarEvents(parsed.appleCalendarEvents),
       calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : def.calendarEvents,
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : def.reminders,
       nightMode: Object.assign({}, def.nightMode, parsed.nightMode),
@@ -427,6 +450,8 @@ function updateAmbientTimeClass(){
   else if(hour >= 7.5 && hour < 17.5) timeClass = "time-day";
   else if(hour >= 17.5 && hour < 20.5) timeClass = "time-dusk";
   else timeClass = "time-night";
+  // Change only the time-of-day class. Keep the current weather class so the
+  // background remains a combination of real weather + current time.
   el.ambient.classList.remove("time-dawn","time-day","time-dusk","time-night");
   el.ambient.classList.add(timeClass);
 }
@@ -517,17 +542,13 @@ function renderWeather(json, fromCacheTs){
   el.weatherHigh.textContent = "H:" + Math.round(json.daily.temperature_2m_max[0]) + "°";
   el.weatherLow.textContent = "L:" + Math.round(json.daily.temperature_2m_min[0]) + "°";
 
-  // ambient background
-  const hour = new Date().getHours();
-  const nightHours = hour >= 21 || hour < 6;
-  const localHour = new Date().getHours() + new Date().getMinutes()/60;
-  let timeClass = "time-day";
-  if(localHour >= 5.5 && localHour < 7.5) timeClass = "time-dawn";
-  else if(localHour >= 7.5 && localHour < 17.5) timeClass = "time-day";
-  else if(localHour >= 17.5 && localHour < 20.5) timeClass = "time-dusk";
-  else timeClass = "time-night";
-  const bgClass = (nightHours && !isDay) ? "weather-night" : "weather-" + info.bg;
-  el.ambient.className = `ambient ${bgClass} ${timeClass} ${isDay ? "is-day" : "is-night"}`;
+  // Ambient background combines live weather with current time of day.
+  // Do not overwrite the time class on every weather update; tickClock()
+  // maintains the time class once per second.
+  const bgClass = (!isDay) ? "weather-night" : "weather-" + info.bg;
+  el.ambient.classList.remove("weather-clear","weather-cloudy","weather-rain","weather-snow","weather-fog","weather-storm","weather-night","is-day","is-night");
+  el.ambient.classList.add(bgClass, isDay ? "is-day" : "is-night");
+  updateAmbientTimeClass();
 
   // conditions / metrics grid
   const hourIdx = Math.max(0, json.hourly.time.indexOf(c.time.slice(0,13) + ":00"));
@@ -747,7 +768,7 @@ function renderCurrentNewsPage(ts){
     div.appendChild(a); div.appendChild(meta); page.appendChild(div);
   });
   el.newsList.appendChild(page);
-  el.freshNews.textContent = freshnessLabel(ts);
+  el.freshNews.textContent = ts ? `Fetched ${freshnessLabel(ts).replace(/^Updated /, "")}` : "—";
 }
 
 function moveNews(delta){
@@ -997,7 +1018,7 @@ function parseICS(text){
   return events.filter(e=>e.start && e.start.getTime()>=Date.now()-86400000).sort((a,b)=>a.start-b.start);
 }
 function allCalendarEvents(){
-  return [...settings.calendarEvents, ...(settings.appleCalendarEvents||[])];
+  return [...settings.calendarEvents, ...reviveCalendarEvents(settings.appleCalendarEvents)];
 }
 async function refreshAppleCalendar(){
   const url=normalizeCalendarUrl(settings.appleCalendar.url);
@@ -1026,7 +1047,7 @@ async function refreshAppleCalendar(){
   }catch(e){
     console.warn("Apple Calendar sync failed", e);
     const cached=calendarCacheGet();
-    if(cached && Array.isArray(cached.events)) settings.appleCalendarEvents=cached.events;
+    if(cached && Array.isArray(cached.events)) settings.appleCalendarEvents=reviveCalendarEvents(cached.events);
     const detail = e && e.message ? ` (${e.message})` : "";
     setCalendarStatus("Sync failed" + detail + " — using last saved calendar data","error");
     renderCalendar(); renderNextEvent(); renderEventsEditList();
@@ -1273,7 +1294,7 @@ function renderSettingsStaticLists(){
 function renderEventsEditList(){
   const list = $("#events-list");
   list.innerHTML = "";
-  const remote = (settings.appleCalendarEvents||[]).filter(e => e.start && e.start.getTime() >= Date.now()-86400000).sort((a,b)=>a.start-b.start).slice(0,20);
+  const remote = reviveCalendarEvents(settings.appleCalendarEvents).filter(e => e.start.getTime() >= Date.now()-86400000).sort((a,b)=>a.start-b.start).slice(0,20);
   const local = [...settings.calendarEvents].sort((a,b) => new Date(a.date+"T"+(a.time||"00:00")) - new Date(b.date+"T"+(b.time||"00:00")));
   if(!remote.length && !local.length){ list.innerHTML = `<div class="empty-note">No events yet.</div>`; return; }
 
@@ -1535,6 +1556,7 @@ async function refreshAll(reason = "manual"){
     await Promise.allSettled([refreshWeather(), refreshAir(), refreshNews(), refreshAppleCalendar()]);
     renderCalendar();
     renderNextEvent();
+    lastDataRefreshAt = Date.now();
   } finally {
     refreshInFlight = false;
   }

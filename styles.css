@@ -77,33 +77,33 @@ body{
 .ambient::after{ width:55vw; height:55vw; right:-18%; bottom:-28%; opacity:.28; }
 
 /* Time of day: dawn → day → dusk → deep night. */
-.ambient.time-dawn{ background:linear-gradient(145deg,#17213a 0%,#2e4056 42%,#6b4b49 100%); }
-.ambient.time-dawn::before{ background:#e7a15d; opacity:.34; transform:translate(18%,22%); }
-.ambient.time-dawn::after{ background:#536c9a; opacity:.30; }
+.ambient.time-dawn{ background:linear-gradient(145deg,#17233d 0%,#314b63 42%,#79544f 100%); }
+.ambient.time-dawn::before{ background:#f1a45f; opacity:.48; transform:translate(18%,22%); }
+.ambient.time-dawn::after{ background:#718fc4; opacity:.36; }
 
-.ambient.time-day{ background:linear-gradient(145deg,#0d1b2b 0%,#112b3b 48%,#17202d 100%); }
-.ambient.time-day::before{ background:#2e73b8; opacity:.30; }
-.ambient.time-day::after{ background:#d18b48; opacity:.12; }
+.ambient.time-day{ background:linear-gradient(145deg,#102942 0%,#16445a 48%,#24313d 100%); }
+.ambient.time-day::before{ background:#3d91d1; opacity:.42; }
+.ambient.time-day::after{ background:#e0a35d; opacity:.18; }
 
-.ambient.time-dusk{ background:linear-gradient(145deg,#171b2c 0%,#3b2935 48%,#17202c 100%); }
-.ambient.time-dusk::before{ background:#e58b52; opacity:.38; transform:translate(15%,18%); }
-.ambient.time-dusk::after{ background:#62528e; opacity:.24; }
+.ambient.time-dusk{ background:linear-gradient(145deg,#1c2238 0%,#513344 48%,#22283b 100%); }
+.ambient.time-dusk::before{ background:#ef9655; opacity:.50; transform:translate(15%,18%); }
+.ambient.time-dusk::after{ background:#7863ad; opacity:.32; }
 
-.ambient.time-night{ background:linear-gradient(145deg,#050810 0%,#090e1b 50%,#0b0d15 100%); }
-.ambient.time-night::before{ background:#1d2c52; opacity:.18; }
-.ambient.time-night::after{ background:#352449; opacity:.14; }
+.ambient.time-night{ background:linear-gradient(145deg,#050810 0%,#0b1222 50%,#130e1d 100%); }
+.ambient.time-night::before{ background:#294c82; opacity:.24; }
+.ambient.time-night::after{ background:#59316b; opacity:.20; }
 
 /* Weather modulation sits above the time palette. */
 .ambient.weather-clear::before{ background:#4d8fe0; }
 .ambient.weather-clear::after{ background:#e8aa57; }
-.ambient.weather-cloudy::before{ background:#5b6578; opacity:.20; }
-.ambient.weather-cloudy::after{ background:#252c3a; opacity:.28; }
-.ambient.weather-rain::before{ background:#254a72; opacity:.20; }
-.ambient.weather-rain::after{ background:#132337; opacity:.38; }
+.ambient.weather-cloudy::before{ background:#7089a4; opacity:.34; }
+.ambient.weather-cloudy::after{ background:#354254; opacity:.34; }
+.ambient.weather-rain::before{ background:#2f6799; opacity:.30; }
+.ambient.weather-rain::after{ background:#172f49; opacity:.44; }
 .ambient.weather-snow::before{ background:#a7bdd1; opacity:.16; }
 .ambient.weather-snow::after{ background:#536c83; opacity:.18; }
-.ambient.weather-fog::before{ background:#8a8e94; opacity:.13; }
-.ambient.weather-fog::after{ background:#555a63; opacity:.18; }
+.ambient.weather-fog::before{ background:#aeb5bd; opacity:.24; }
+.ambient.weather-fog::after{ background:#66707b; opacity:.28; }
 .ambient.weather-storm::before{ background:#513a75; opacity:.22; }
 .ambient.weather-storm::after{ background:#171123; opacity:.40; }
 .ambient.weather-night::before{ background:#142244; opacity:.14; }
