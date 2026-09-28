@@ -249,10 +249,10 @@ function defaultSettings(){
     newsCategories: { tech:true, business:true, science:true, us:false, world:false, automotive:false, sports:false },
     newsSources: { hn:true, techcrunch:true, arstechnica:false, theverge:false, mit:false, cnbc:true, googlebiz:false, nasa:true, space:true, googlesci:false, googleus:false, googleworld:false, googleauto:false, googlesports:false },
     newsCount: 10,
-    newsRefreshMinutes: 10,
-    newsHeadlinesPerPage: 5,
+    newsRefreshMinutes: 5,
+    newsHeadlinesPerPage: 3,
     newsAutoRotate: true,
-    appleCalendar: { enabled:false, url:"", refreshMinutes:15, proxyUrl:"" },
+    appleCalendar: { enabled:false, url:"", refreshMinutes:5, proxyUrl:"" },
     appleCalendarEvents: [],
     calendarEvents: [
       { id: "evt-sample", title: "CCAR-F: Claude Certified Architect – Foundations", date: nextSaturdayISO(), time: "13:00", location: "" }
@@ -293,7 +293,7 @@ function loadSettings(){
       newsSources: Object.assign({}, def.newsSources, parsed.newsSources),
       newsCount: parsed.newsCount || def.newsCount,
       newsRefreshMinutes: parsed.newsRefreshMinutes || def.newsRefreshMinutes,
-      newsHeadlinesPerPage: parsed.newsHeadlinesPerPage || def.newsHeadlinesPerPage,
+      newsHeadlinesPerPage: 3,
       newsAutoRotate: parsed.newsAutoRotate !== undefined ? !!parsed.newsAutoRotate : def.newsAutoRotate,
       appleCalendar: Object.assign({}, def.appleCalendar, parsed.appleCalendar),
       appleCalendarEvents: Array.isArray(parsed.appleCalendarEvents) ? parsed.appleCalendarEvents : def.appleCalendarEvents,
@@ -689,7 +689,7 @@ function enabledNewsCategories(){
 
 function newsPageDurationMs(){
   const categories = Math.max(1, enabledNewsCategories().length);
-  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / Math.max(1, settings.newsHeadlinesPerPage || 5)));
+  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / Math.max(1, 3)));
   return Math.max(15000, Math.round((settings.newsRefreshMinutes * 60000) / categories / pages));
 }
 
@@ -704,7 +704,7 @@ function renderNewsNavigation(){
   if(newsCategoryIndex >= cats.length) newsCategoryIndex = 0;
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perPage = Math.max(1, settings.newsHeadlinesPerPage || 5);
+  const perPage = Math.max(1, 3);
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   if(newsPageIndex >= pages) newsPageIndex = 0;
   el.newsCategoryTitle.textContent = cat.label;
@@ -723,7 +723,7 @@ function renderCurrentNewsPage(ts){
   renderNewsNavigation();
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perPage = Math.max(1, settings.newsHeadlinesPerPage || 5);
+  const perPage = Math.max(1, 3);
   const start = newsPageIndex * perPage;
   const pageItems = items.slice(start, start + perPage);
   el.newsList.innerHTML = "";
@@ -754,13 +754,13 @@ function moveNews(delta){
   const cats = enabledNewsCategories();
   if(!cats.length) return;
   if(delta !== 0){
-    if(delta === 1 && newsPageIndex < Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, settings.newsHeadlinesPerPage||5)) - 1)){
+    if(delta === 1 && newsPageIndex < Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, 3)) - 1)){
       newsPageIndex++;
     }else if(delta === -1 && newsPageIndex > 0){
       newsPageIndex--;
     }else{
       newsCategoryIndex = (newsCategoryIndex + (delta > 0 ? 1 : -1) + cats.length) % cats.length;
-      newsPageIndex = delta > 0 ? 0 : Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, settings.newsHeadlinesPerPage||5)) - 1);
+      newsPageIndex = delta > 0 ? 0 : Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, 3)) - 1);
     }
   }
   renderCurrentNewsPage(lastNewsTimestamp || Date.now());
@@ -1395,13 +1395,13 @@ function setupMiscControls(){
     refreshNews();
   });
   $("#news-refresh").addEventListener("change", (e) => {
-    settings.newsRefreshMinutes = Math.max(5, Number(e.target.value) || 10);
+    settings.newsRefreshMinutes = Math.max(3, Number(e.target.value) || 5);
     saveSettings();
     restartNewsTimer();
     restartNewsRotationTimer();
   });
   $("#news-headlines-per-page").addEventListener("change", (e) => {
-    settings.newsHeadlinesPerPage = Math.max(3, Math.min(8, Number(e.target.value) || 5));
+    settings.newsHeadlinesPerPage = 3;
     saveSettings(); newsPageIndex = 0; renderCurrentNewsPage(lastNewsTimestamp); restartNewsRotationTimer();
   });
   $("#news-auto-rotate").addEventListener("change", (e) => {
@@ -1440,7 +1440,7 @@ function setupMiscControls(){
   });
 
   $("#clear-apple-calendar-btn").addEventListener("click", () => {
-    settings.appleCalendar = { enabled:false, url:"", refreshMinutes:15, proxyUrl:"" };
+    settings.appleCalendar = { enabled:false, url:"", refreshMinutes:5, proxyUrl:"" };
     settings.appleCalendarEvents = [];
     saveSettings();
     $("#apple-calendar-url").value = "";
@@ -1527,7 +1527,16 @@ function init(){
   tickClock();
   setInterval(tickClock, 1000);
   setInterval(renderNextEvent, 60000);
-  setInterval(() => { if(newsByCategory && Object.keys(newsByCategory).length) renderCurrentNewsPage(lastNewsTimestamp); }, 60000);
+  // Keep time-sensitive UI elements current even between network refreshes.
+  // Weather/air/calendar data are fetched on their own 5-minute cadence below.
+  // The calendar is re-rendered every minute so today/event dots stay current,
+  // and the news freshness label keeps counting from the last successful fetch.
+  setInterval(() => {
+    renderCalendar();
+    renderNextEvent();
+    renderSunMoon({});
+    if(newsByCategory && Object.keys(newsByCategory).length) renderCurrentNewsPage(lastNewsTimestamp);
+  }, 60000);
 
   setupTabs();
   setupLocationSearch();
@@ -1537,7 +1546,7 @@ function init(){
   refreshAll();
   setInterval(refreshWeather, 5 * 60000);
   setInterval(refreshAir, 5 * 60000);
-  setInterval(() => refreshAppleCalendar(), (settings.appleCalendar.refreshMinutes || 15) * 60000);
+  setInterval(() => refreshAppleCalendar(), (settings.appleCalendar.refreshMinutes || 5) * 60000);
   restartNewsTimer();
 
   // Midnight rollover: re-render calendar + quote once the day changes.

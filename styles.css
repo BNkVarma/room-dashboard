@@ -139,8 +139,8 @@ body{
 .card-weather{ flex: 1.5; }
 .card-metrics{ flex: 1.15; }
 .card-air{ flex: 0.85; }
-.card-news{ flex: 1.45; }
-.card-clock{ flex: 1.05; }
+.card-news{ flex: 2.05; }
+.card-clock{ flex: 0.72; }
 .card-calendar{ flex: 1.4; }
 .card-next-event{ flex: 0.85; }
 .card-sun-moon{ flex: 1.0; min-height: 150px; }
@@ -314,9 +314,9 @@ body{
 .news-category-pill.active{ color:var(--text-primary); border-color:rgba(232,170,87,.65); background:rgba(232,170,87,.10); }
 .news-list{ flex:1; min-height:0; overflow:hidden; padding-right:3px; }
 .news-page{ min-height:0; height:100%; display:flex; flex-direction:column; }
-.news-item{ flex:1 1 0; min-height:0; padding:10px 0 9px; border-bottom:1px solid rgba(255,255,255,.065); display:flex; flex-direction:column; justify-content:center; gap:5px; }
+.news-item{ flex:1 1 0; min-height:0; padding:14px 0 12px; border-bottom:1px solid rgba(255,255,255,.065); display:flex; flex-direction:column; justify-content:center; gap:5px; }
 .news-item:last-child{ border-bottom:none; }
-.news-title{ display:block; color:var(--text-primary); text-decoration:none; font-family:var(--font-display); font-size:clamp(15px,1.45vw,18px); font-weight:600; line-height:1.28; letter-spacing:-.005em; }
+.news-title{ display:block; color:var(--text-primary); text-decoration:none; font-family:var(--font-display); font-size:clamp(17px,1.65vw,21px); font-weight:600; line-height:1.28; letter-spacing:-.005em; }
 .news-title:hover{ color:#fff; text-decoration:none; }
 .news-meta{ display:flex; align-items:center; gap:8px; color:var(--text-tertiary); font-size:10.5px; line-height:1.2; }
 .news-source{ color:var(--text-secondary); font-weight:600; }
@@ -334,7 +334,7 @@ body{
 
 .clock-time{
   font-family: var(--font-display);
-  font-size: clamp(64px, 11vw, 128px);
+  font-size: clamp(50px, 7.2vw, 88px);
   font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1;
@@ -342,7 +342,7 @@ body{
 }
 
 .card-clock.large .clock-time{
-  font-size: clamp(76px, 13vw, 152px);
+  font-size: clamp(60px, 8.8vw, 108px);
 }
 
 .clock-date{
@@ -564,6 +564,7 @@ body{
   inset: 0;
   z-index: 50;
   background: #000;
+  filter: brightness(.05);
   display: none;
   flex-direction: column;
   align-items: center;

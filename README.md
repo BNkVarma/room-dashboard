@@ -98,3 +98,11 @@ The feed is refreshed every 15 minutes by default and the dashboard keeps the la
 ### Privacy warning
 
 An Apple published calendar URL is effectively a **bearer link**: anyone who has the URL may be able to read that calendar. This dashboard stores the URL in Safari's local storage. When the browser cannot fetch the feed directly, it sends the URL to the same public CORS proxy used for RSS news (`api.allorigins.win`) so the static GitHub Pages app can read the ICS file. For a highly private calendar, use a dedicated/self-hosted proxy instead of a public proxy.
+
+
+### Automatic live refresh
+- Weather and air quality refresh every 5 minutes.
+- Apple Calendar refreshes every 5 minutes when enabled.
+- Calendar/event countdown UI re-renders every minute.
+- News refresh interval defaults to 5 minutes and is configurable in Settings (minimum 3 minutes).
+- News rotation remains separate from fetching, so headlines can rotate without repeatedly hitting feeds.
