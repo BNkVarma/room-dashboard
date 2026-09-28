@@ -19,7 +19,7 @@ const CALENDAR_CACHE_KEY = "roomDashboard.appleCalendarCache.v1";
 // Public, free, key-less CORS proxy used only for feeds that don't send
 // CORS headers themselves. See the README for the limitations of this.
 const CORS_PROXY = "";
-const FEED_PROXY_FALLBACK = "";
+const FEED_PROXY_FALLBACK = "https://falling-term-61d5.nikhilvarma982000.workers.dev/";
 const APPLE_CALENDAR_PROXY_FALLBACK = "";
 
 const WEATHER_METRICS = [
@@ -498,7 +498,7 @@ async function fetchWeather(){
     forecast_days: "1"
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: "no-store" });
   if(!res.ok) throw new Error("weather http " + res.status);
   const json = await res.json();
   weatherCacheSet(json);
@@ -623,7 +623,7 @@ async function fetchAir(){
     timezone: "auto"
   });
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: "no-store" });
   if(!res.ok) throw new Error("air http " + res.status);
   const json = await res.json();
   airCacheSet(json);
@@ -1501,20 +1501,48 @@ function setupMiscControls(){
    -------------------------------------------------------------------- */
 
 let newsTimer = null;
+let refreshInFlight = false;
+let lastDataRefreshAt = 0;
+
 function restartNewsTimer(){
   if(newsTimer) clearInterval(newsTimer);
-  newsTimer = setInterval(refreshNews, settings.newsRefreshMinutes * 60000);
+  newsTimer = setInterval(() => refreshNews(), Math.max(3, settings.newsRefreshMinutes || 5) * 60000);
   restartNewsRotationTimer();
 }
 
-function refreshAll(){
-  refreshWeather();
-  refreshAir();
-  refreshNews();
-  refreshAppleCalendar();
-  renderCalendar();
-  renderNextEvent();
-  renderReminders();
+async function refreshAll(reason = "manual"){
+  if(refreshInFlight) return;
+  refreshInFlight = true;
+  lastDataRefreshAt = Date.now();
+  try{
+    // Render cached content immediately, then replace it with live data.
+    const wc = weatherCacheGet();
+    if(wc?.data) renderWeather(wc.data, wc.ts);
+    const ac = airCacheGet();
+    if(ac?.data) renderAir(ac.data, ac.ts);
+    const nc = newsCacheGet();
+    if(nc?.items?.length && !Object.keys(newsByCategory).length){
+      const grouped = {};
+      nc.items.forEach(x => (grouped[x.category || "tech"] ||= []).push(x));
+      newsByCategory = grouped;
+      lastNewsTimestamp = nc.ts || Date.now();
+      renderCurrentNewsPage(lastNewsTimestamp);
+    }
+    renderCalendar();
+    renderNextEvent();
+    renderReminders();
+
+    await Promise.allSettled([refreshWeather(), refreshAir(), refreshNews(), refreshAppleCalendar()]);
+    renderCalendar();
+    renderNextEvent();
+  } finally {
+    refreshInFlight = false;
+  }
+}
+
+function refreshIfStale(reason = "resume"){
+  const fiveMinutes = 5 * 60000;
+  if(Date.now() - lastDataRefreshAt >= fiveMinutes) refreshAll(reason);
 }
 
 /* --------------------------------------------------------------------
@@ -1543,10 +1571,19 @@ function init(){
   setupMiscControls();
   renderSettingsStaticLists();
 
-  refreshAll();
-  setInterval(refreshWeather, 5 * 60000);
-  setInterval(refreshAir, 5 * 60000);
-  setInterval(() => refreshAppleCalendar(), (settings.appleCalendar.refreshMinutes || 5) * 60000);
+  // One live refresh cycle immediately on every page load. The settings are
+  // read from localStorage, so there is no need to open Settings to trigger it.
+  refreshAll("startup");
+
+  // Keep the data live while the iPad stays on the dashboard. Each network
+  // source is fetched at its own cadence, while refreshIfStale() handles the
+  // case where iPadOS suspends timers while the screen/app is asleep.
+  setInterval(() => refreshIfStale("interval"), 60 * 1000);
+  window.addEventListener("focus", () => refreshIfStale("focus"));
+  window.addEventListener("pageshow", () => refreshIfStale("pageshow"));
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible") refreshIfStale("visibility");
+  });
   restartNewsTimer();
 
   // Midnight rollover: re-render calendar + quote once the day changes.
