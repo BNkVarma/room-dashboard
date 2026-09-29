@@ -1198,11 +1198,11 @@ input[type="time"]{
     min-height:0;
   }
 
-  /* Left column: weather dominant, conditions get the most detail space,
-     sun/moon stays intentionally compact. */
-  .col-left .card-weather{flex:1.55 1 0;}
-  .col-left .card-metrics{flex:1.28 1 0;}
-  .col-left .card-sun-moon{flex:.70 1 0;}
+  /* Left column: weather first, compact sun/moon second, conditions last.
+     Conditions gets the larger remaining section so all fields + AQI stay visible. */
+  .col-left .card-weather{flex:1.45 1 0; order:1;}
+  .col-left .card-sun-moon{flex:.55 1 0; order:2;}
+  .col-left .card-metrics{flex:1.65 1 0; order:3;}
 
   /* Center: compact clock, short event stack, news gets the remaining room. */
   .col-center .card-clock{flex:.62 1 0;}
