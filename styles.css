@@ -1657,3 +1657,131 @@ input[type="time"]{
   .card-news-main .news-description{font-size:clamp(10px,1cqw,15px)}
   .card-calendar{padding:clamp(12px,1.8cqw,22px)}
 }
+
+/* ======================================================================
+   Typography boost — keep Weather exactly as-is.
+   The weather card has its own responsive typography above. These rules
+   intentionally target every other dashboard surface so the rest of the
+   dashboard reads at a more comfortable distance.
+   ====================================================================== */
+
+@media (min-width:981px){
+  /* Conditions */
+  .col-left .card-metrics .card-title{
+    font-size:clamp(14px,1.7cqw,18px);
+  }
+  .col-left .card-metrics .fresh{
+    font-size:clamp(10px,1.2cqw,13px);
+  }
+  .col-left .card-metrics .metrics-grid{
+    gap:clamp(7px,1.35cqh,14px) clamp(12px,2.1cqw,22px);
+  }
+  .col-left .card-metrics .metric-label{
+    font-size:clamp(11px,1.35cqw,14px);
+  }
+  .col-left .card-metrics .metric-value{
+    font-size:clamp(17px,2.35cqw,24px);
+    line-height:1.08;
+  }
+  .col-left .inline-air-title{
+    font-size:clamp(11px,1.35cqw,14px);
+  }
+  .col-left .inline-air-place{
+    font-size:clamp(9px,1.1cqw,11px);
+  }
+  .col-left .inline-aqi-number{
+    font-size:clamp(27px,4.4cqw,34px);
+  }
+  .col-left .inline-aqi-label{
+    font-size:clamp(10px,1.35cqw,13px);
+  }
+  .col-left .inline-air-sub{
+    font-size:clamp(9px,1.1cqw,11px);
+  }
+
+  /* Sun & moon — larger type, but still compact vertically. */
+  .col-left .card-sun-moon .card-title{
+    font-size:clamp(14px,1.7cqw,18px);
+  }
+  .col-left .card-sun-moon .sun-time{
+    font-size:clamp(16px,2.25cqw,21px);
+  }
+  .col-left .card-sun-moon .sun-label{
+    font-size:clamp(9px,1.15cqw,12px);
+  }
+  .col-left .card-sun-moon .moon-phase{
+    font-size:clamp(11px,1.45cqw,15px);
+  }
+  .col-left .card-sun-moon .moon-illum{
+    font-size:clamp(9px,1.15cqw,12px);
+  }
+
+  /* Upcoming events */
+  .card-next-event .card-title{
+    font-size:clamp(14px,1.7cqw,18px);
+  }
+  .card-next-event .upcoming-event-name{
+    font-size:clamp(15px,2cqw,20px);
+    line-height:1.22;
+  }
+  .card-next-event .upcoming-event-meta{
+    font-size:clamp(10px,1.25cqw,13px);
+  }
+  .card-next-event .upcoming-event-countdown{
+    font-size:clamp(10px,1.2cqw,13px);
+    padding:5px 9px;
+  }
+
+  /* Calendar */
+  .card-calendar .card-title{
+    font-size:clamp(14px,1.7cqw,18px);
+  }
+  .card-calendar .calendar-hint{
+    font-size:clamp(9px,1.05cqw,11px);
+  }
+  .card-calendar .calendar-weekdays{
+    font-size:clamp(10px,1.15cqw,13px);
+  }
+  .card-calendar .cal-day{
+    font-size:clamp(11px,1.35cqw,14px);
+  }
+
+  /* Single wide news surface */
+  .card-news-main .news-heading-wrap .card-title{
+    font-size:clamp(16px,1.8cqw,21px);
+  }
+  .card-news-main .news-status{
+    font-size:clamp(10px,1.1cqw,13px);
+  }
+  .card-news-main .news-category-pill{
+    font-size:clamp(10px,1.15cqw,13px);
+    padding:7px 11px;
+  }
+  .card-news-main .news-title{
+    font-size:clamp(19px,1.7cqw,27px);
+    line-height:1.2;
+  }
+  .card-news-main .news-description{
+    font-size:clamp(13px,1.15cqw,17px);
+    line-height:1.4;
+  }
+  .card-news-main .news-meta{
+    font-size:clamp(11px,1.05cqw,13px);
+  }
+}
+
+/* On narrower landscape screens, keep the typography readable without
+   touching the Weather card's existing responsive rules. */
+@media (min-width:981px) and (max-width:1120px){
+  .col-left .card-metrics .metric-label{font-size:11px}
+  .col-left .card-metrics .metric-value{font-size:18px}
+  .col-left .inline-aqi-number{font-size:28px}
+  .col-left .card-sun-moon .sun-time{font-size:17px}
+  .col-left .card-sun-moon .sun-label{font-size:10px}
+  .col-left .card-sun-moon .moon-phase{font-size:12px}
+  .col-left .card-sun-moon .moon-illum{font-size:10px}
+  .card-next-event .upcoming-event-name{font-size:16px}
+  .card-next-event .upcoming-event-meta{font-size:11px}
+  .card-news-main .news-title{font-size:20px}
+  .card-news-main .news-description{font-size:13px}
+}
