@@ -53,31 +53,6 @@
       </div>
     </article>
 
-    <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">
-      <header class="card-head">
-        <h2 class="card-title">Sun &amp; moon</h2>
-      </header>
-      <div class="sun-row">
-        <div class="sun-item">
-          <div class="sun-icon" id="sunrise-icon"></div>
-          <div class="sun-time" id="sunrise-time">—</div>
-          <div class="sun-label">Sunrise</div>
-        </div>
-        <div class="sun-item">
-          <div class="sun-icon" id="sunset-icon"></div>
-          <div class="sun-time" id="sunset-time">—</div>
-          <div class="sun-label">Sunset</div>
-        </div>
-      </div>
-      <div class="moon-row">
-        <div class="moon-icon" id="moon-icon"></div>
-        <div class="moon-info">
-          <div class="moon-phase" id="moon-phase">—</div>
-          <div class="moon-illum" id="moon-illum">—</div>
-        </div>
-      </div>
-    </article>
-
     <article class="card card-metrics" id="card-metrics" data-card="weatherDetails">
       <header class="card-head">
         <h2 class="card-title">Conditions</h2>
@@ -104,6 +79,31 @@
       </div>
     </article>
 
+    <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">
+      <header class="card-head">
+        <h2 class="card-title">Sun &amp; moon</h2>
+      </header>
+      <div class="sun-row">
+        <div class="sun-item">
+          <div class="sun-icon" id="sunrise-icon"></div>
+          <div class="sun-time" id="sunrise-time">—</div>
+          <div class="sun-label">Sunrise</div>
+        </div>
+        <div class="sun-item">
+          <div class="sun-icon" id="sunset-icon"></div>
+          <div class="sun-time" id="sunset-time">—</div>
+          <div class="sun-label">Sunset</div>
+        </div>
+      </div>
+      <div class="moon-row">
+        <div class="moon-icon" id="moon-icon"></div>
+        <div class="moon-info">
+          <div class="moon-phase" id="moon-phase">—</div>
+          <div class="moon-illum" id="moon-illum">—</div>
+        </div>
+      </div>
+    </article>
+
   </section>
 
   <!-- CENTER COLUMN -->
@@ -123,20 +123,7 @@
       <div class="upcoming-events-list" id="upcoming-events-list" aria-label="Next 3 upcoming events"></div>
     </article>
 
-    <article class="card card-news card-news-main" id="card-news" data-card="news">
-      <header class="card-head news-head">
-        <div class="news-heading-wrap">
-          <button class="news-nav" id="news-prev" aria-label="Previous news category">‹</button>
-          <h2 class="card-title" id="news-category-title">Live news</h2>
-          <button class="news-nav" id="news-next" aria-label="Next news category">›</button>
-        </div>
-        <div class="news-status"><span class="fresh" id="fresh-news">—</span><span id="news-page-indicator">1/1</span></div>
-      </header>
-      <div class="news-category-strip" id="news-category-strip"></div>
-      <div class="news-list" id="news-list">
-        <div class="news-empty">Loading headlines…</div>
-      </div>
-    </article>
+
 
   </section>
 
@@ -157,18 +144,6 @@
     </article>
 
 
-    <article class="card card-news card-news-secondary" id="card-news-secondary" data-card="newsSecondary">
-      <header class="card-head news-head">
-        <div class="news-heading-wrap">
-          <h2 class="card-title" id="news-secondary-title">More news</h2>
-        </div>
-        <div class="news-status"><span id="news-secondary-page">—</span></div>
-      </header>
-      <div class="news-list" id="news-list-secondary">
-        <div class="news-empty">Loading headlines…</div>
-      </div>
-    </article>
-
     <article class="card card-reminders" id="card-reminders" data-card="reminders" hidden>
       <header class="card-head">
         <h2 class="card-title">Reminders</h2>
@@ -177,6 +152,22 @@
     </article>
 
   </section>
+
+  <!-- SINGLE NEWS SURFACE: spans columns 2 + 3 on desktop -->
+    <article class="card card-news card-news-main" id="card-news" data-card="news">
+      <header class="card-head news-head">
+        <div class="news-heading-wrap">
+          <button class="news-nav" id="news-prev" aria-label="Previous news category">‹</button>
+          <h2 class="card-title" id="news-category-title">Live news</h2>
+          <button class="news-nav" id="news-next" aria-label="Next news category">›</button>
+        </div>
+        <div class="news-status"><span class="fresh" id="fresh-news">—</span><span id="news-page-indicator">1/1</span></div>
+      </header>
+      <div class="news-category-strip" id="news-category-strip"></div>
+      <div class="news-list" id="news-list">
+        <div class="news-empty">Loading headlines…</div>
+      </div>
+    </article>
 
 </main>
 
@@ -251,7 +242,7 @@
       </div>
       <div class="field-row">
         <label class="field-label" for="news-headlines-per-page">Headlines per page</label>
-        <input type="number" id="news-headlines-per-page" min="3" max="3" step="1" />
+        <input type="number" id="news-headlines-per-page" min="3" max="3" step="1" value="3" />
       </div>
       <label class="check-inline"><input type="checkbox" id="news-auto-rotate" /> Auto-rotate categories/pages</label>
       <p class="settings-note">The refresh interval downloads fresh headlines. The dashboard then divides that interval across enabled categories and pages. Swipe or use the arrows to change categories manually.</p>

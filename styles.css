@@ -143,7 +143,6 @@ body{
 .card-next-event{ grid-area: events; min-height: 0; }
 .card-calendar{ grid-area: calendar; min-height: 0; }
 .card-news-main{ grid-area: news; min-height: 0; }
-.card-news-secondary{ display:none !important; }
 .card-reminders{ display:none !important; }
 .card-news{ min-height:0; }
 
@@ -1044,7 +1043,6 @@ input[type="time"]{
 .card-next-event{ flex:.72; }
 .card-news-main{ flex:1.88; }
 .card-calendar{ flex:1.05; }
-.card-news-secondary{ flex:1.72; }
 
 /* Keep today's temperature dominant while putting location/H/L/rain directly underneath. */
 .weather-layout{ grid-template-columns:minmax(175px,.86fr) minmax(245px,1.14fr); gap:18px; }
@@ -1082,16 +1080,11 @@ input[type="time"]{
 /* News occupies the remaining center/right space. */
 .card-news{ min-height:0; }
 .card-news-main .news-item{ justify-content:flex-start; }
-.card-news-secondary .news-item{ justify-content:flex-start; }
 .news-description{ -webkit-line-clamp:3; line-clamp:3; font-size:clamp(12px,1.02vw,14px); line-height:1.38; }
 .news-title{ font-size:clamp(17px,1.5vw,21px); }
-.card-news-secondary .news-title{ font-size:clamp(16px,1.38vw,20px); }
-.card-news-secondary .news-description{ max-width:100%; }
 
 @media (min-width:981px) and (max-height:850px){
-  .card-news-main .news-item,
-  .card-news-secondary .news-item{ padding-top:8px; padding-bottom:8px; }
-  .news-description{ -webkit-line-clamp:3; line-clamp:3; }
+    .news-description{ -webkit-line-clamp:3; line-clamp:3; }
 }
 
 
@@ -1161,17 +1154,20 @@ input[type="time"]{
 }
 
 /* ======================================================================
-   Independent-column information architecture
-   Each column owns its own vertical rhythm. No global horizontal row
-   divisions: weather/conditions/sun-moon, clock/events/news, and
-   calendar/news can all have different heights.
+   Final dashboard information architecture
+   - Column 1 owns Weather -> Conditions -> compact Sun & Moon.
+   - Column 2 owns Clock -> compact Upcoming Events.
+   - Column 3 owns Calendar.
+   - ONE News card spans columns 2 + 3 below those top cards.
    ====================================================================== */
 @media (min-width: 981px){
   .dashboard{
     display:grid;
     grid-template-columns:minmax(0,1fr) minmax(0,1.14fr) minmax(0,1fr);
-    grid-template-rows:1fr;
-    grid-template-areas:"left center right";
+    grid-template-rows:minmax(0,.78fr) minmax(0,1.52fr);
+    grid-template-areas:
+      "left centerTop rightTop"
+      "left news news";
     align-items:stretch;
   }
 
@@ -1183,8 +1179,8 @@ input[type="time"]{
     gap:var(--gap);
   }
   .col-left{grid-area:left;}
-  .col-center{grid-area:center;}
-  .col-right{grid-area:right;}
+  .col-center{grid-area:centerTop;}
+  .col-right{grid-area:rightTop;}
 
   .card-weather,
   .card-metrics,
@@ -1192,52 +1188,276 @@ input[type="time"]{
   .card-clock,
   .card-next-event,
   .card-calendar,
-  .card-news-main,
-  .card-news-secondary{
+  .card-news-main{
     grid-area:auto;
     min-height:0;
   }
 
-  /* Left column: weather first, compact sun/moon second, conditions last.
-     Conditions gets the larger remaining section so all fields + AQI stay visible. */
-  .col-left .card-weather{flex:1.45 1 0; order:1;}
-  .col-left .card-sun-moon{flex:.55 1 0; order:2;}
-  .col-left .card-metrics{flex:1.65 1 0; order:3;}
+  /* Left column has its own vertical rhythm and fills the full dashboard height. */
+  .col-left .card-weather{flex:1.55 1 0;}
+  .col-left .card-metrics{flex:1.28 1 0;}
+  .col-left .card-sun-moon{flex:.70 1 0;}
 
-  /* Center: compact clock, short event stack, news gets the remaining room. */
-  .col-center .card-clock{flex:.62 1 0;}
-  .col-center .card-next-event{flex:.78 1 0;}
-  .col-center .card-news-main{flex:2.55 1 0;}
+  /* Center top: clock stays prominent, events deliberately compact. */
+  .col-center .card-clock{flex:1.05 1 0;}
+  .col-center .card-next-event{flex:.82 1 0;}
 
-  /* Right: calendar owns the top, the same news page continues below it. */
-  .col-right .card-calendar{flex:1.12 1 0;}
-  .col-right .card-news-secondary{display:flex !important; flex:1.88 1 0;}
+  /* Right top: calendar owns the whole top-right area. */
+  .col-right .card-calendar{flex:1 1 0;}
 
-  .card-news-secondary .news-head{margin-bottom:8px;}
-  .card-news-secondary .news-list{padding-right:4px;}
-  .card-news-secondary .news-item{justify-content:flex-start; padding:14px 0 13px;}
-  .card-news-secondary .news-title{font-size:clamp(16px,1.38vw,21px);}
-  .card-news-secondary .news-description{font-size:clamp(12px,1vw,14px); -webkit-line-clamp:3; line-clamp:3;}
+  /* The ONLY news surface. It physically spans columns 2 and 3. */
+  .card-news-main{
+    grid-area:news;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+  }
+  .card-news-main .news-list{padding-right:6px;}
+  .card-news-main .news-item{
+    justify-content:flex-start;
+    padding:16px 4px 15px 0;
+  }
+  .card-news-main .news-title{
+    font-size:clamp(18px,1.45vw,24px);
+    line-height:1.2;
+  }
+  .card-news-main .news-description{
+    font-size:clamp(12px,1vw,15px);
+    -webkit-line-clamp:3;
+    line-clamp:3;
+    max-width:92%;
+    line-height:1.4;
+  }
+  .card-news-main .news-meta{font-size:11px;}
 
-  /* Keep the conditions card readable after giving it extra height. */
-  .col-left .card-metrics .metrics-grid{align-content:start; padding-top:4px;}
+  /* Conditions get enough space for all fields + AQI. */
+  .col-left .card-metrics .metrics-grid{
+    align-content:start;
+    padding-top:4px;
+  }
   .col-left .card-metrics .metric-value{font-size:21px;}
   .col-left .card-metrics .metric-label{font-size:12px;}
   .col-left .inline-air{margin-top:auto;}
 
-  /* Sun/moon deliberately consumes little vertical space. */
+  /* Sun/moon remains intentionally compact. */
   .col-left .card-sun-moon .sun-row{flex:0 0 78px;}
   .col-left .card-sun-moon .moon-row{flex:0 0 auto;}
-
-  /* The main news surface and its continuation read as one stream. */
-  .card-news-main .news-item,
-  .card-news-secondary .news-item{justify-content:flex-start;}
 }
 
-@media (min-width: 981px) and (max-height: 850px){
-  .dashboard{gap:14px; padding:16px;}
+@media (min-width:981px) and (max-height:850px){
+  .dashboard{gap:14px;padding:16px;}
   .col{gap:14px;}
   .col-left .card-metrics .metric-value{font-size:18px;}
-  .card-news-main .news-item,
-  .card-news-secondary .news-item{padding-top:9px; padding-bottom:9px;}
+  .card-news-main .news-item{padding-top:9px;padding-bottom:9px;}
+}
+
+/* Tablet/mobile: stack the single news card normally; never create a second news panel. */
+@media (max-width:980px){
+  .dashboard{
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:none;
+    grid-template-areas:none;
+    height:auto;
+    min-height:100vh;
+    min-height:100dvh;
+    overflow-y:auto;
+  }
+  .col{
+    display:contents;
+  }
+  .card{grid-area:auto !important;min-height:220px;}
+  .card-clock{min-height:220px;}
+  .card-news-main{min-height:420px;}
+}
+
+/* ======================================================================
+   Responsive fit / no-cutoff pass
+   The dashboard must adapt its internal typography and vertical rhythm to
+   the actual viewport instead of letting fixed card proportions crop data.
+   ====================================================================== */
+@media (min-width:981px){
+  /* Give the left column more room to Conditions while keeping Sun & Moon compact. */
+  .col-left .card-weather{ flex:1.55 1 0; }
+  .col-left .card-metrics{ flex:1.42 1 0; }
+  .col-left .card-sun-moon{ flex:.58 1 0; }
+
+  /* Weather: preserve the large current temperature, compress everything else first. */
+  .card-weather{ padding:20px; }
+  .card-weather .card-head{ margin-bottom:10px; }
+  .card-weather .weather-layout{ gap:14px; }
+  .card-weather .weather-today{ padding-right:14px; }
+  .card-weather .weather-main{ min-height:104px; gap:10px; }
+  .card-weather .weather-icon{ width:62px; height:62px; }
+  .card-weather .weather-temp{ font-size:clamp(50px,6vw,70px); }
+  .card-weather .weather-cond{ font-size:15px; margin-top:4px; }
+  .card-weather .weather-place{ margin-top:8px; font-size:12px; }
+  .card-weather .weather-hilo{ margin-top:5px; gap:8px; font-size:11px; }
+  .card-weather .forecast-heading{ font-size:9px; margin:0 0 4px; }
+  .card-weather .forecast-divider{ margin:7px 0 4px; }
+  .card-weather .forecast-list{ justify-content:space-between; }
+  .card-weather .forecast-row{
+    min-height:24px;
+    font-size:11px;
+    grid-template-columns:31px 21px 33px minmax(36px,1fr) 33px 38px;
+    gap:4px;
+  }
+  .card-weather .forecast-icon,
+  .card-weather .forecast-icon svg{ width:19px; height:19px; }
+
+  /* Conditions: all six fields + AQI remain visible. */
+  .card-metrics{ padding:20px; }
+  .card-metrics .card-head{ margin-bottom:10px; }
+  .card-metrics .metrics-grid{ gap:8px 18px; padding-bottom:8px; }
+  .card-metrics .metric-label{ font-size:10px; }
+  .card-metrics .metric-value{ font-size:18px; }
+  .card-metrics .inline-air{ margin-top:8px; padding-top:8px; }
+  .card-metrics .inline-aqi-number{ font-size:27px; }
+  .card-metrics .inline-aqi-label{ font-size:11px; }
+  .card-metrics .inline-air-sub{ margin-top:4px; }
+
+  /* Sun & Moon only needs a compact strip. */
+  .card-sun-moon{ padding:16px 18px; }
+  .card-sun-moon .card-head{ margin-bottom:2px; }
+  .card-sun-moon .sun-row{ flex:0 0 66px; min-height:66px; }
+  .card-sun-moon .sun-icon{ width:36px; height:22px; }
+  .card-sun-moon .sun-time{ font-size:16px; }
+  .card-sun-moon .sun-label{ font-size:10px; }
+  .card-sun-moon .moon-row{ flex:0 0 43px; min-height:43px; padding-top:6px; margin-top:6px; gap:9px; }
+  .card-sun-moon .moon-icon{ width:30px; height:30px; }
+  .card-sun-moon .moon-phase{ font-size:12px; }
+  .card-sun-moon .moon-illum{ font-size:10px; }
+}
+
+/* Shorter landscape screens: shrink secondary content, never the main temperature. */
+@media (min-width:981px) and (max-height:850px){
+  .dashboard{ padding:14px; gap:12px; }
+  .col{ gap:12px; }
+  .col-left .card-weather{ flex:1.45 1 0; }
+  .col-left .card-metrics{ flex:1.35 1 0; }
+  .col-left .card-sun-moon{ flex:.48 1 0; }
+
+  .card-weather{ padding:16px; }
+  .card-weather .weather-main{ min-height:94px; }
+  .card-weather .weather-temp{ font-size:clamp(48px,5.6vw,64px); }
+  .card-weather .weather-icon{ width:56px; height:56px; }
+  .card-weather .weather-place{ margin-top:5px; }
+  .card-weather .weather-hilo{ margin-top:3px; font-size:10px; }
+  .card-weather .forecast-row{ min-height:21px; font-size:10px; grid-template-columns:29px 19px 31px minmax(30px,1fr) 31px 35px; }
+  .card-weather .forecast-icon,
+  .card-weather .forecast-icon svg{ width:17px; height:17px; }
+
+  .card-metrics{ padding:16px; }
+  .card-metrics .metrics-grid{ gap:6px 14px; }
+  .card-metrics .metric-label{ font-size:9px; }
+  .card-metrics .metric-value{ font-size:16px; }
+  .card-metrics .inline-air{ margin-top:6px; padding-top:6px; }
+  .card-metrics .inline-aqi-number{ font-size:24px; }
+
+  .card-sun-moon{ padding:12px 14px; }
+  .card-sun-moon .sun-row{ flex-basis:55px; min-height:55px; }
+  .card-sun-moon .sun-icon{ width:32px; height:19px; }
+  .card-sun-moon .sun-time{ font-size:14px; }
+  .card-sun-moon .sun-label{ font-size:9px; }
+  .card-sun-moon .moon-row{ flex-basis:36px; min-height:36px; padding-top:4px; margin-top:4px; }
+  .card-sun-moon .moon-icon{ width:25px; height:25px; }
+  .card-sun-moon .moon-phase{ font-size:11px; }
+  .card-sun-moon .moon-illum{ font-size:9px; }
+}
+
+/* Very short landscape displays (including split-screen/tablet cases). */
+@media (min-width:981px) and (max-height:700px){
+  .dashboard{ padding:10px; gap:10px; }
+  .col{ gap:10px; }
+  .card{ border-radius:20px; }
+  .col-left .card-weather{ flex:1.25 1 0; }
+  .col-left .card-metrics{ flex:1.25 1 0; }
+  .col-left .card-sun-moon{ flex:.42 1 0; }
+
+  .card-weather{ padding:12px; }
+  .card-weather .card-head{ margin-bottom:6px; }
+  .card-weather .weather-main{ min-height:78px; }
+  .card-weather .weather-temp{ font-size:clamp(44px,5vw,56px); }
+  .card-weather .weather-icon{ width:46px; height:46px; }
+  .card-weather .weather-cond{ font-size:12px; }
+  .card-weather .weather-place{ font-size:10px; margin-top:3px; }
+  .card-weather .weather-hilo{ font-size:9px; gap:5px; }
+  .card-weather .forecast-heading{ font-size:8px; margin-bottom:2px; }
+  .card-weather .forecast-row{ min-height:18px; font-size:9px; grid-template-columns:26px 17px 28px minmax(24px,1fr) 28px 31px; gap:3px; }
+  .card-weather .forecast-icon,
+  .card-weather .forecast-icon svg{ width:15px; height:15px; }
+
+  .card-metrics{ padding:12px; }
+  .card-metrics .card-head{ margin-bottom:6px; }
+  .card-metrics .metrics-grid{ gap:4px 10px; }
+  .card-metrics .metric-label{ font-size:8px; }
+  .card-metrics .metric-value{ font-size:14px; }
+  .card-metrics .inline-air{ margin-top:4px; padding-top:4px; }
+  .card-metrics .inline-aqi-number{ font-size:20px; }
+  .card-metrics .inline-aqi-label{ font-size:9px; }
+  .card-metrics .inline-air-sub{ font-size:8px; margin-top:2px; }
+
+  .card-sun-moon{ padding:9px 10px; }
+  .card-sun-moon .card-head{ margin-bottom:0; }
+  .card-sun-moon .sun-row{ flex-basis:43px; min-height:43px; }
+  .card-sun-moon .sun-icon{ width:26px; height:16px; }
+  .card-sun-moon .sun-time{ font-size:12px; }
+  .card-sun-moon .sun-label{ font-size:8px; }
+  .card-sun-moon .moon-row{ flex-basis:29px; min-height:29px; padding-top:3px; margin-top:3px; gap:6px; }
+  .card-sun-moon .moon-icon{ width:21px; height:21px; }
+  .card-sun-moon .moon-phase{ font-size:9px; }
+  .card-sun-moon .moon-illum{ font-size:8px; }
+}
+
+/* Prevent text itself from becoming the reason a card overflows. */
+.card-weather *, .card-metrics *, .card-sun-moon *, .card-clock *, .card-next-event *, .card-calendar *, .card-news-main *{
+  min-width:0;
+}
+
+/* Keep the other panels self-fitting on short/wide displays as well. */
+@media (min-width:981px) and (max-height:850px){
+  .card-clock{ padding:16px; }
+  .card-clock .clock-time{ font-size:clamp(32px,4.8vw,54px); }
+  .card-clock .clock-date{ font-size:clamp(12px,1.1vw,15px); margin-top:6px; }
+  .card-clock .clock-quote{ font-size:10px; margin-top:7px; }
+
+  .card-next-event{ padding:16px; }
+  .card-next-event .card-head{ margin-bottom:7px; }
+  .card-next-event .upcoming-event-item{ padding:6px 0; }
+  .card-next-event .upcoming-event-name{ font-size:clamp(14px,1.35vw,17px); }
+  .card-next-event .upcoming-event-meta{ font-size:10px; margin-top:2px; }
+  .card-next-event .upcoming-event-countdown{ font-size:10px; padding:3px 6px; }
+
+  .card-calendar{ padding:16px; }
+  .card-calendar .card-head{ margin-bottom:8px; }
+  .card-calendar .calendar-weekdays{ margin-bottom:3px; }
+  .card-calendar .calendar-grid{ grid-auto-rows:minmax(22px,1fr); gap:2px; }
+  .card-calendar .cal-day{ min-height:22px; font-size:11px; border-radius:7px; }
+
+  .card-news-main{ padding:16px; }
+  .card-news-main .news-head{ margin-bottom:7px; }
+  .card-news-main .news-category-strip{ padding-bottom:6px; }
+  .card-news-main .news-category-pill{ padding:5px 8px; font-size:10px; }
+  .card-news-main .news-item{ padding:8px 3px 8px 0; gap:3px; }
+  .card-news-main .news-title{ font-size:clamp(16px,1.4vw,21px); }
+  .card-news-main .news-description{ font-size:clamp(11px,.95vw,14px); line-height:1.3; }
+  .card-news-main .news-meta{ font-size:10px; }
+}
+
+/* Narrower three-column landscape layouts: reduce secondary text before reducing
+   the primary temperature/current-weather typography. */
+@media (min-width:981px) and (max-width:1120px){
+  .dashboard{ grid-template-columns:minmax(0,.96fr) minmax(0,1.08fr) minmax(0,.96fr); }
+  .card-weather .weather-layout{ grid-template-columns:minmax(120px,.82fr) minmax(175px,1.18fr); gap:10px; }
+  .card-weather .weather-today{ padding-right:9px; }
+  .card-weather .weather-icon{ width:50px; height:50px; }
+  .card-weather .weather-temp{ font-size:clamp(46px,5.6vw,62px); }
+  .card-weather .weather-cond{ font-size:13px; }
+  .card-weather .weather-place{ font-size:10px; }
+  .card-weather .weather-hilo{ font-size:9px; gap:5px; }
+  .card-weather .forecast-row{ grid-template-columns:28px 18px 30px minmax(24px,1fr) 30px 34px; gap:3px; font-size:10px; }
+  .card-weather .forecast-icon,
+  .card-weather .forecast-icon svg{ width:16px; height:16px; }
+  .card-metrics .metric-value{ font-size:16px; }
+  .card-metrics .metric-label{ font-size:9px; }
 }

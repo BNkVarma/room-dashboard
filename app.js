@@ -378,9 +378,6 @@ const el = {
   freshAir: $("#fresh-air"),
 
   newsList: $("#news-list"),
-  newsListSecondary: $("#news-list-secondary"),
-  newsSecondaryTitle: $("#news-secondary-title"),
-  newsSecondaryPage: $("#news-secondary-page"),
   freshNews: $("#fresh-news"),
   newsCategoryTitle: $("#news-category-title"),
   newsCategoryStrip: $("#news-category-strip"),
@@ -782,9 +779,8 @@ function enabledNewsCategories(){
 
 function newsPageDurationMs(){
   const categories = Math.max(1, enabledNewsCategories().length);
-  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
-  const totalPerPage = perColumn * 2;
-  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / totalPerPage));
+  const perPage = 3;
+  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / perPage));
   return Math.max(15000, Math.round((settings.newsRefreshMinutes * 60000) / categories / pages));
 }
 
@@ -799,9 +795,8 @@ function renderNewsNavigation(){
   if(newsCategoryIndex >= cats.length) newsCategoryIndex = 0;
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
-  const totalPerPage = perColumn * 2;
-  const pages = Math.max(1, Math.ceil(items.length / totalPerPage));
+  const perPage = 3;
+  const pages = Math.max(1, Math.ceil(items.length / perPage));
   if(newsPageIndex >= pages) newsPageIndex = 0;
   el.newsCategoryTitle.textContent = cat.label;
   el.newsCategoryStrip.innerHTML = cats.map((c,i)=>`<span class="news-category-pill ${i===newsCategoryIndex?'active':''}">${c.label}</span>`).join("");
@@ -845,33 +840,23 @@ function renderCurrentNewsPage(ts){
   const cats = enabledNewsCategories();
   if(!cats.length){
     el.newsList.innerHTML = `<div class="news-empty">No categories or sources enabled. Choose some in settings.</div>`;
-    if(el.newsListSecondary) el.newsListSecondary.innerHTML = `<div class="news-empty">No news configured.</div>`;
     el.freshNews.textContent = "—";
-    if(el.newsSecondaryTitle) el.newsSecondaryTitle.textContent = "More news";
-    if(el.newsSecondaryPage) el.newsSecondaryPage.textContent = "—";
     renderNewsNavigation();
     return;
   }
+
   renderNewsNavigation();
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
-  const totalPerPage = perColumn * 2;
-  const start = newsPageIndex * totalPerPage;
-  const centerItems = items.slice(start, start + perColumn);
-  const rightItems = items.slice(start + perColumn, start + totalPerPage);
 
-  // News is visually continuous across columns 2 and 3: the center column
-  // starts the page and the right column continues the same page underneath
-  // the calendar. This avoids forcing unrelated cards to share row heights.
-  renderNewsItems(el.newsList, centerItems);
-  if(el.newsListSecondary) renderNewsItems(el.newsListSecondary, rightItems);
-  if(el.newsSecondaryTitle) el.newsSecondaryTitle.textContent = `${cat.label} · continued`;
-  if(el.newsSecondaryPage) {
-    const first = start + perColumn + 1;
-    const last = start + perColumn + rightItems.length;
-    el.newsSecondaryPage.textContent = rightItems.length ? `${first}–${last}` : "—";
-  }
+  // The dashboard has ONE news card spanning columns 2 and 3.
+  // Show exactly three headlines in that card at a time; never split the
+  // same page into a second news card/column.
+  const perPage = 3;
+  const start = newsPageIndex * perPage;
+  const pageItems = items.slice(start, start + perPage);
+  renderNewsItems(el.newsList, pageItems);
+
   el.freshNews.textContent = ts ? `Fetched ${freshnessLabel(ts).replace(/^Updated /, "")}` : "—";
 }
 
@@ -1328,8 +1313,6 @@ function applyDisplaySettings(){
   });
   const inlineAir = document.querySelector("#inline-air");
   if(inlineAir) inlineAir.hidden = !settings.display.cards.airQuality;
-  const newsSecondary = document.querySelector("#card-news-secondary");
-  if(newsSecondary) newsSecondary.hidden = !settings.display.cards.news;
   applyClockSize();
 }
 
