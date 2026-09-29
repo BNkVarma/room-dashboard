@@ -122,28 +122,30 @@ body{
   height: 100vh;
   height: 100dvh;
   display: grid;
-  grid-template-columns: 1fr 1.15fr 1fr;
+  grid-template-columns: minmax(300px,1fr) minmax(420px,1.15fr) minmax(300px,1fr);
+  grid-template-rows: 1.08fr .72fr 1.70fr;
+  grid-template-areas:
+    "weather clock calendar"
+    "metrics events calendar"
+    "sunmoon news news";
   gap: var(--gap);
   padding: 22px;
   padding-top: calc(22px + env(safe-area-inset-top, 0px));
   padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px));
 }
 
-.col{
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  min-height: 0;
-}
+.col{ display: contents; }
 
-.card-weather{ flex: 1.5; }
-.card-metrics{ flex: 1.15; }
-.card-news{ flex: 2.65; }
-.card-clock{ flex: 0.48; min-height: 0; }
-.card-calendar{ flex: 1.4; }
-.card-next-event{ flex: 0.85; }
-.card-sun-moon{ flex: 1.0; min-height: 150px; }
-.card-reminders{ flex: 0.95; min-height: 130px; }
+.card-weather{ grid-area: weather; }
+.card-metrics{ grid-area: metrics; }
+.card-sun-moon{ grid-area: sunmoon; min-height: 0; }
+.card-clock{ grid-area: clock; min-height: 0; }
+.card-next-event{ grid-area: events; min-height: 0; }
+.card-calendar{ grid-area: calendar; min-height: 0; }
+.card-news-main{ grid-area: news; min-height: 0; }
+.card-news-secondary{ display:none !important; }
+.card-reminders{ display:none !important; }
+.card-news{ min-height:0; }
 
 /* ---------- Card base ---------- */
 
@@ -576,9 +578,10 @@ body{
   gap: 18px;
 }
 
-body.night-mode .dashboard{ display: none; }
-body.night-mode .night-overlay{ display: flex; }
-body.night-mode .settings-btn{ opacity: 0.25; }
+body.night-mode .dashboard{ filter: brightness(.05); }
+body.night-mode .ambient{ filter: brightness(.05); }
+body.night-mode .night-overlay{ display: none; }
+body.night-mode .settings-btn{ opacity: .95; z-index: 90; background: rgba(20,22,29,.96); color: var(--text-primary); }
 
 .night-time{
   font-family: var(--font-display);
@@ -600,7 +603,7 @@ body.night-mode .settings-btn{ opacity: 0.25; }
   position: fixed;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   right: 20px;
-  z-index: 40;
+  z-index: 90;
   width: 48px; height: 48px;
   border-radius: 50%;
   border: 1px solid var(--card-border-strong);
@@ -619,7 +622,7 @@ body.night-mode .settings-btn{ opacity: 0.25; }
 .settings-backdrop{
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 100;
   background: rgba(0,0,0,0.55);
   display: none;
 }
@@ -627,7 +630,7 @@ body.night-mode .settings-btn{ opacity: 0.25; }
 .settings-panel{
   position: fixed;
   top: 0; right: 0;
-  z-index: 61;
+  z-index: 101;
   width: min(440px, 92vw);
   height: 100%;
   background: var(--bg-elevated);
@@ -1024,4 +1027,104 @@ input[type="time"]{
   .weather-layout{ grid-template-columns:1fr; gap:10px; }
   .weather-today{ padding-right:0; padding-bottom:10px; border-right:0; border-bottom:1px solid var(--card-border); }
   .weather-forecast-panel{ min-height:220px; }
+}
+
+/* ---------- Final landscape information architecture ---------- */
+.dashboard{
+  grid-template-columns: minmax(0,1fr) minmax(0,1.14fr) minmax(0,1fr);
+}
+.col-left{ gap:var(--gap); }
+.col-center{ gap:var(--gap); }
+.col-right{ gap:var(--gap); }
+
+.card-weather{ flex:1.62; }
+.card-metrics{ flex:.92; }
+.card-sun-moon{ flex:.82; min-height:0; }
+.card-clock{ flex:.42; }
+.card-next-event{ flex:.72; }
+.card-news-main{ flex:1.88; }
+.card-calendar{ flex:1.05; }
+.card-news-secondary{ flex:1.72; }
+
+/* Keep today's temperature dominant while putting location/H/L/rain directly underneath. */
+.weather-layout{ grid-template-columns:minmax(175px,.86fr) minmax(245px,1.14fr); gap:18px; }
+.weather-today{ padding-right:18px; justify-content:flex-start; }
+.weather-main{ align-items:flex-start; gap:13px; }
+.weather-icon{ width:68px; height:68px; margin-top:5px; }
+.weather-primary{ padding-top:0; min-width:0; }
+.weather-temp{ font-size:clamp(52px,6.4vw,72px); }
+.weather-cond{ margin-top:5px; }
+.weather-place{ display:block; margin-top:12px; font-size:13px; color:var(--text-primary); font-weight:500; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.weather-hilo{ display:flex; gap:10px; margin-top:7px; font-size:12px; flex-wrap:wrap; }
+.weather-hilo .hilo-high{ color:var(--accent-orange); }
+.weather-hilo .hilo-low{ color:var(--accent-blue); }
+.weather-hilo .hilo-rain{ color:var(--accent-blue); white-space:nowrap; }
+.weather-forecast-panel{ padding-left:0; }
+.forecast-heading{ margin-top:0; }
+.forecast-list{ overflow:hidden; }
+.forecast-row{ grid-template-columns:34px 24px 36px minmax(42px,1fr) 36px 42px; gap:5px; min-height:31px; font-size:12px; }
+.forecast-rain{ min-width:42px; white-space:nowrap; text-align:right; }
+
+/* Conditions + AQI gets a little more breathing room, but remains compact. */
+.card-metrics{ padding-top:22px; }
+.metrics-grid{ gap:10px 20px; padding-bottom:12px; }
+.metric-label{ font-size:11px; }
+.metric-value{ font-size:17px; }
+.inline-air{ padding-top:10px; }
+
+/* Events live directly beneath the clock. */
+.upcoming-events-list{ overflow:auto; min-height:0; }
+.upcoming-event-item{ padding:9px 0; }
+.card-next-event .upcoming-event-name{ font-size:17px; }
+.card-next-event .upcoming-event-meta{ font-size:11px; }
+.card-next-event .upcoming-event-countdown{ font-size:11px; }
+
+/* News occupies the remaining center/right space. */
+.card-news{ min-height:0; }
+.card-news-main .news-item{ justify-content:flex-start; }
+.card-news-secondary .news-item{ justify-content:flex-start; }
+.news-description{ -webkit-line-clamp:3; line-clamp:3; font-size:clamp(12px,1.02vw,14px); line-height:1.38; }
+.news-title{ font-size:clamp(17px,1.5vw,21px); }
+.card-news-secondary .news-title{ font-size:clamp(16px,1.38vw,20px); }
+.card-news-secondary .news-description{ max-width:100%; }
+
+@media (min-width:981px) and (max-height:850px){
+  .card-news-main .news-item,
+  .card-news-secondary .news-item{ padding-top:8px; padding-bottom:8px; }
+  .news-description{ -webkit-line-clamp:3; line-clamp:3; }
+}
+
+
+/* Final wide-news composition: one continuous panel below the clock/events and calendar. */
+.card-news-main .news-list{ padding-right:6px; }
+.card-news-main .news-item{ padding:16px 4px 15px 0; }
+.card-news-main .news-title{ font-size:clamp(18px,1.45vw,24px); line-height:1.2; }
+.card-news-main .news-description{ font-size:clamp(12px,1vw,15px); -webkit-line-clamp:3; max-width:92%; line-height:1.4; }
+.card-news-main .news-meta{ font-size:11px; }
+
+@media (max-width: 1050px){
+  .dashboard{
+    grid-template-columns:minmax(250px,1fr) minmax(330px,1.15fr) minmax(250px,1fr);
+    grid-template-rows:1.05fr .75fr 1.7fr;
+    gap:12px;
+    padding:14px;
+  }
+  .card-news-main .news-title{ font-size:clamp(16px,1.55vw,21px); }
+}
+
+/* Final mobile fallback: stack cards once the three-column dashboard no longer fits. */
+@media (max-width: 980px){
+  .dashboard{
+    grid-template-columns:1fr;
+    grid-template-rows:none;
+    grid-template-areas:none;
+    height:auto;
+    min-height:100vh;
+    min-height:100dvh;
+    overflow-y:auto;
+  }
+  .col{ display:contents; }
+  .card{ grid-area:auto !important; min-height:220px; }
+  .card-clock{ min-height:220px; }
+  .card-news-main{ min-height:420px; }
 }

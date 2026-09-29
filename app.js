@@ -262,7 +262,7 @@ function defaultSettings(){
       { id: "rem-2", text: "Laundry", done: false },
       { id: "rem-3", text: "Check tomorrow's schedule", done: false }
     ],
-    nightMode: { start: "22:00", end: "07:00", alarmText: "Alarm · 7:00 AM" },
+    nightMode: { start: "22:00", end: "07:00", mode: "auto", alarmText: "Alarm · 7:00 AM" },
     display: {
       cards: { weather:true, weatherDetails:true, airQuality:true, news:true, clock:true, calendar:true, nextEvent:true, reminders:true, sunMoon:true },
       clockSize: "regular"
@@ -378,6 +378,9 @@ const el = {
   freshAir: $("#fresh-air"),
 
   newsList: $("#news-list"),
+  newsListSecondary: $("#news-list-secondary"),
+  newsSecondaryTitle: $("#news-secondary-title"),
+  newsSecondaryPage: $("#news-secondary-page"),
   freshNews: $("#fresh-news"),
   newsCategoryTitle: $("#news-category-title"),
   newsCategoryStrip: $("#news-category-strip"),
@@ -429,6 +432,9 @@ function timeStrToMinutes(str){
 }
 
 function isNightNow(now){
+  const mode = settings.nightMode.mode || "auto";
+  if(mode === "night") return true;
+  if(mode === "day") return false;
   const startM = timeStrToMinutes(settings.nightMode.start);
   const endM = timeStrToMinutes(settings.nightMode.end);
   const nowM = now.getHours()*60 + now.getMinutes();
@@ -799,27 +805,15 @@ function renderNewsNavigation(){
   el.newsPageIndicator.textContent = `${newsPageIndex+1}/${pages}`;
 }
 
-function renderCurrentNewsPage(ts){
-  const cats = enabledNewsCategories();
-  if(!cats.length){
-    el.newsList.innerHTML = `<div class="news-empty">No categories or sources enabled. Choose some in settings.</div>`;
-    el.freshNews.textContent = "—";
-    renderNewsNavigation();
-    return;
-  }
-  renderNewsNavigation();
-  const cat = cats[newsCategoryIndex];
-  const items = newsByCategory[cat.key] || [];
-  const perPage = Math.max(1, 3);
-  const start = newsPageIndex * perPage;
-  const pageItems = items.slice(start, start + perPage);
-  el.newsList.innerHTML = "";
+function renderNewsItems(container, items){
+  if(!container) return;
+  container.innerHTML = "";
   const page = document.createElement("div");
   page.className = "news-page";
-  if(!pageItems.length){
+  if(!items.length){
     page.innerHTML = `<div class="news-empty">No headlines available for this category.</div>`;
   }
-  pageItems.forEach(item => {
+  items.forEach(item => {
     const div = document.createElement("div");
     div.className = "news-item";
     const a = document.createElement("a");
@@ -828,6 +822,7 @@ function renderCurrentNewsPage(ts){
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.textContent = item.title;
+    div.appendChild(a);
     if(item.description){
       const desc = document.createElement("div");
       desc.className = "news-description";
@@ -836,10 +831,33 @@ function renderCurrentNewsPage(ts){
     }
     const meta = document.createElement("div");
     meta.className = "news-meta";
-    meta.innerHTML = `<span class="news-source">${item.source}</span><span>${timeAgo(item.date)}</span>`;
-    div.appendChild(a); div.appendChild(meta); page.appendChild(div);
+    meta.innerHTML = `<span class="news-source">${escapeHtml(item.source || "News")}</span><span>${timeAgo(item.date)}</span>`;
+    div.appendChild(meta);
+    page.appendChild(div);
   });
-  el.newsList.appendChild(page);
+  container.appendChild(page);
+}
+
+function renderCurrentNewsPage(ts){
+  const cats = enabledNewsCategories();
+  if(!cats.length){
+    el.newsList.innerHTML = `<div class="news-empty">No categories or sources enabled. Choose some in settings.</div>`;
+    if(el.newsListSecondary) el.newsListSecondary.innerHTML = `<div class="news-empty">No news configured.</div>`;
+    el.freshNews.textContent = "—";
+    if(el.newsSecondaryTitle) el.newsSecondaryTitle.textContent = "More news";
+    if(el.newsSecondaryPage) el.newsSecondaryPage.textContent = "—";
+    renderNewsNavigation();
+    return;
+  }
+  renderNewsNavigation();
+  const cat = cats[newsCategoryIndex];
+  const items = newsByCategory[cat.key] || [];
+  const perPage = 3;
+  const start = newsPageIndex * perPage;
+  const pageItems = items.slice(start, start + perPage);
+  // The dashboard now uses one continuous news surface spanning columns 2–3.
+  // Keep all three stories together so the typography and summaries stay readable.
+  renderNewsItems(el.newsList, pageItems);
   el.freshNews.textContent = ts ? `Fetched ${freshnessLabel(ts).replace(/^Updated /, "")}` : "—";
 }
 
@@ -1354,6 +1372,7 @@ function renderSettingsStaticLists(){
   $("#night-start").value = settings.nightMode.start;
   $("#night-end").value = settings.nightMode.end;
   $("#night-alarm-input").value = settings.nightMode.alarmText;
+  $$("#night-mode-toggle .seg-btn").forEach(b => b.classList.toggle("active", b.dataset.nightMode === (settings.nightMode.mode || "auto")));
 
   $("#loc-name-display").textContent = settings.location.name;
   $("#loc-coords-display").textContent = settings.location.lat.toFixed(3) + ", " + settings.location.lon.toFixed(3);
@@ -1570,9 +1589,17 @@ function setupMiscControls(){
     renderReminders();
   });
 
-  $("#night-start").addEventListener("change", e => { settings.nightMode.start = e.target.value; saveSettings(); });
-  $("#night-end").addEventListener("change", e => { settings.nightMode.end = e.target.value; saveSettings(); });
+  $("#night-start").addEventListener("change", e => { settings.nightMode.start = e.target.value; saveSettings(); tickClock(); });
+  $("#night-end").addEventListener("change", e => { settings.nightMode.end = e.target.value; saveSettings(); tickClock(); });
   $("#night-alarm-input").addEventListener("input", e => { settings.nightMode.alarmText = e.target.value; saveSettings(); });
+  $$("#night-mode-toggle .seg-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      settings.nightMode.mode = btn.dataset.nightMode;
+      saveSettings();
+      $$("#night-mode-toggle .seg-btn").forEach(b => b.classList.toggle("active", b === btn));
+      tickClock();
+    });
+  });
 
   $("#preview-night-btn").addEventListener("click", () => {
     forcedNightPreview = !forcedNightPreview;

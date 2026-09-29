@@ -37,15 +37,13 @@
             <div class="weather-primary">
               <div class="weather-temp" id="weather-temp">—°</div>
               <div class="weather-cond" id="weather-cond">Loading…</div>
+              <div class="weather-place" id="weather-place">—</div>
+              <div class="weather-hilo">
+                <span class="hilo-high" id="weather-high">H:—°</span>
+                <span class="hilo-low" id="weather-low">L:—°</span>
+                <span class="hilo-rain" id="weather-rain">🌧 —%</span>
+              </div>
             </div>
-          </div>
-          <div class="weather-sub">
-            <span class="weather-place" id="weather-place">—</span>
-            <span class="weather-hilo">
-              <span class="hilo-high" id="weather-high">H:—°</span>
-              <span class="hilo-low" id="weather-low">L:—°</span>
-              <span class="hilo-rain" id="weather-rain">🌧 —%</span>
-            </span>
           </div>
         </div>
         <div class="weather-forecast-panel">
@@ -81,6 +79,31 @@
       </div>
     </article>
 
+    <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">
+      <header class="card-head">
+        <h2 class="card-title">Sun &amp; moon</h2>
+      </header>
+      <div class="sun-row">
+        <div class="sun-item">
+          <div class="sun-icon" id="sunrise-icon"></div>
+          <div class="sun-time" id="sunrise-time">—</div>
+          <div class="sun-label">Sunrise</div>
+        </div>
+        <div class="sun-item">
+          <div class="sun-icon" id="sunset-icon"></div>
+          <div class="sun-time" id="sunset-time">—</div>
+          <div class="sun-label">Sunset</div>
+        </div>
+      </div>
+      <div class="moon-row">
+        <div class="moon-icon" id="moon-icon"></div>
+        <div class="moon-info">
+          <div class="moon-phase" id="moon-phase">—</div>
+          <div class="moon-illum" id="moon-illum">—</div>
+        </div>
+      </div>
+    </article>
+
   </section>
 
   <!-- CENTER COLUMN -->
@@ -92,7 +115,15 @@
       <div class="clock-quote" id="clock-quote">—</div>
     </article>
 
-    <article class="card card-news" id="card-news" data-card="news">
+    <article class="card card-next-event" id="card-next-event" data-card="nextEvent">
+      <header class="card-head">
+        <h2 class="card-title">Upcoming events</h2>
+        <span class="event-count-pill" id="event-count">0</span>
+      </header>
+      <div class="upcoming-events-list" id="upcoming-events-list" aria-label="Next 3 upcoming events"></div>
+    </article>
+
+    <article class="card card-news card-news-main" id="card-news" data-card="news">
       <header class="card-head news-head">
         <div class="news-heading-wrap">
           <button class="news-nav" id="news-prev" aria-label="Previous news category">‹</button>
@@ -125,46 +156,12 @@
       <div class="calendar-grid" id="calendar-grid"></div>
     </article>
 
-    <article class="card card-next-event" id="card-next-event" data-card="nextEvent">
-      <header class="card-head">
-        <h2 class="card-title">Upcoming events</h2>
-        <span class="event-count-pill" id="event-count">0</span>
-      </header>
-      <div class="upcoming-events-list" id="upcoming-events-list" aria-label="Next 3 upcoming events"></div>
-    </article>
 
-    <article class="card card-sun-moon" id="card-sun-moon" data-card="sunMoon">
-      <header class="card-head">
-        <h2 class="card-title">Sun &amp; moon</h2>
-      </header>
-      <div class="sun-row">
-        <div class="sun-item">
-          <div class="sun-icon" id="sunrise-icon"></div>
-          <div class="sun-time" id="sunrise-time">—</div>
-          <div class="sun-label">Sunrise</div>
-        </div>
-        <div class="sun-item">
-          <div class="sun-icon" id="sunset-icon"></div>
-          <div class="sun-time" id="sunset-time">—</div>
-          <div class="sun-label">Sunset</div>
-        </div>
-      </div>
-      <div class="moon-row">
-        <div class="moon-icon" id="moon-icon"></div>
-        <div class="moon-info">
-          <div class="moon-phase" id="moon-phase">—</div>
-          <div class="moon-illum" id="moon-illum">—</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="card card-reminders" id="card-reminders" data-card="reminders">
+    <article class="card card-reminders" id="card-reminders" data-card="reminders" hidden>
       <header class="card-head">
         <h2 class="card-title">Reminders</h2>
       </header>
-      <ul class="reminders-list" id="reminders-list">
-        <!-- populated by JS -->
-      </ul>
+      <ul class="reminders-list" id="reminders-list"></ul>
     </article>
 
   </section>
@@ -298,6 +295,14 @@
       <div class="field-row">
         <label class="field-label" for="night-end">Night mode ends</label>
         <input type="time" id="night-end" />
+      </div>
+      <div class="field-row">
+        <label class="field-label">Mode</label>
+        <div class="segmented" id="night-mode-toggle">
+          <button class="seg-btn" data-night-mode="auto">Auto</button>
+          <button class="seg-btn" data-night-mode="day">Day</button>
+          <button class="seg-btn" data-night-mode="night">Night</button>
+        </div>
       </div>
       <div class="field-row">
         <label class="field-label" for="night-alarm-input">Alarm text</label>
