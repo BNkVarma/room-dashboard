@@ -523,7 +523,7 @@ async function fetchWeather(){
     wind_speed_unit: imperial ? "mph" : "kmh",
     precipitation_unit: imperial ? "inch" : "mm",
     timezone: "auto",
-    forecast_days: "7"
+    forecast_days: "8"
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
   const res = await fetch(url, { cache: "no-store" });
