@@ -515,12 +515,12 @@ async function fetchWeather(){
     latitude: lat, longitude: lon,
     current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,is_day",
     hourly: "precipitation_probability,uv_index",
-    daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
     temperature_unit: imperial ? "fahrenheit" : "celsius",
     wind_speed_unit: imperial ? "mph" : "kmh",
     precipitation_unit: imperial ? "inch" : "mm",
     timezone: "auto",
-    forecast_days: "1"
+    forecast_days: "7"
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -539,16 +539,24 @@ function renderWeather(json, fromCacheTs){
   el.weatherTemp.textContent = Math.round(c.temperature_2m) + "°";
   el.weatherCond.textContent = info.text;
   el.weatherPlace.textContent = settings.location.name;
-  el.weatherHigh.textContent = "H:" + Math.round(json.daily.temperature_2m_max[0]) + "°";
-  el.weatherLow.textContent = "L:" + Math.round(json.daily.temperature_2m_min[0]) + "°";
+  const daily = json.daily || {};
+  const todayMax = daily.temperature_2m_max?.[0];
+  const todayMin = daily.temperature_2m_min?.[0];
+  const todayRain = daily.precipitation_probability_max?.[0];
+  el.weatherHigh.textContent = "H:" + (Number.isFinite(todayMax) ? Math.round(todayMax) : "—") + "°";
+  el.weatherLow.textContent = "L:" + (Number.isFinite(todayMin) ? Math.round(todayMin) : "—") + "°";
+  const rainEl = document.querySelector("#weather-rain");
+  if(rainEl) rainEl.textContent = "🌧 " + (Number.isFinite(todayRain) ? Math.round(todayRain) : "—") + "%";
 
-  // Ambient background combines live weather with current time of day.
-  // Do not overwrite the time class on every weather update; tickClock()
-  // maintains the time class once per second.
-  const bgClass = (!isDay) ? "weather-night" : "weather-" + info.bg;
+  // Ambient background is deliberately a combination of the live weather
+  // condition and the independently calculated time-of-day palette.
+  // This keeps rain/fog/clouds visible even after sunset.
+  const weatherClass = "weather-" + info.bg;
   el.ambient.classList.remove("weather-clear","weather-cloudy","weather-rain","weather-snow","weather-fog","weather-storm","weather-night","is-day","is-night");
-  el.ambient.classList.add(bgClass, isDay ? "is-day" : "is-night");
+  el.ambient.classList.add(weatherClass, isDay ? "is-day" : "is-night");
   updateAmbientTimeClass();
+
+  renderForecast(json);
 
   // conditions / metrics grid
   const hourIdx = Math.max(0, json.hourly.time.indexOf(c.time.slice(0,13) + ":00"));
@@ -578,6 +586,43 @@ function renderWeather(json, fromCacheTs){
   el.freshWeather.textContent = freshnessLabel(fromCacheTs || Date.now());
 
   renderSunMoon(json);
+}
+
+function renderForecast(json){
+  const list = document.querySelector("#forecast-list");
+  if(!list || !json.daily?.time) return;
+
+  const days = json.daily.time.slice(1, 8);
+  const mins = json.daily.temperature_2m_min || [];
+  const maxs = json.daily.temperature_2m_max || [];
+  const rains = json.daily.precipitation_probability_max || [];
+  const codes = json.daily.weather_code || [];
+  const available = days.map((_, i) => ({ min: mins[i + 1], max: maxs[i + 1] })).filter(x => Number.isFinite(x.min) && Number.isFinite(x.max));
+  const allTemps = available.flatMap(x => [x.min, x.max]);
+  const rangeMin = allTemps.length ? Math.min(...allTemps) : 0;
+  const rangeMax = allTemps.length ? Math.max(...allTemps) : 1;
+  const span = Math.max(1, rangeMax - rangeMin);
+
+  list.innerHTML = days.map((dateStr, offset) => {
+    const i = offset + 1;
+    const date = new Date(dateStr + "T12:00:00");
+    const info = WMO[codes[i]] || { icon: "cloud", text: "—" };
+    const min = mins[i];
+    const max = maxs[i];
+    const rain = rains[i];
+    const left = Number.isFinite(min) ? ((min - rangeMin) / span) * 100 : 0;
+    const width = Number.isFinite(min) && Number.isFinite(max) ? Math.max(8, ((max - min) / span) * 100) : 8;
+    const day = date.toLocaleDateString(undefined, { weekday: "short" });
+    const rainText = Number.isFinite(rain) ? Math.round(rain) + "%" : "—";
+    return `<div class="forecast-row">
+      <span class="forecast-day">${day}</span>
+      <span class="forecast-icon" title="${info.text}">${renderIcon(info.icon)}</span>
+      <span class="forecast-min">${Number.isFinite(min) ? Math.round(min) + "°" : "—"}</span>
+      <span class="forecast-track"><span class="forecast-range" style="left:${left}%;width:${width}%"></span></span>
+      <span class="forecast-max">${Number.isFinite(max) ? Math.round(max) + "°" : "—"}</span>
+      <span class="forecast-rain">${rainText}</span>
+    </div>`;
+  }).join("");
 }
 
 function renderSunMoon(json){
@@ -695,6 +740,27 @@ function activeNewsSources(){
   return NEWS_SOURCES.filter(s => settings.newsCategories[s.category] && settings.newsSources[s.id]);
 }
 
+function cleanNewsText(value){
+  if(!value) return "";
+  const box = document.createElement("div");
+  box.innerHTML = value;
+  return (box.textContent || box.innerText || "").replace(/\s+/g, " ").trim();
+}
+
+function rssDescription(item){
+  const candidates = [
+    item.querySelector("description")?.textContent,
+    item.querySelector("summary")?.textContent,
+    item.querySelector("content")?.textContent
+  ];
+  // content:encoded is namespaced and may not be found by a simple selector.
+  if(!candidates.some(Boolean)){
+    const encoded = Array.from(item.children).find(n => /(^|:)encoded$/i.test(n.localName || n.nodeName || ""));
+    if(encoded) candidates.push(encoded.textContent);
+  }
+  return cleanNewsText(candidates.find(Boolean) || "");
+}
+
 let newsByCategory = {};
 let newsCategoryIndex = 0;
 let newsPageIndex = 0;
@@ -762,6 +828,12 @@ function renderCurrentNewsPage(ts){
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.textContent = item.title;
+    if(item.description){
+      const desc = document.createElement("div");
+      desc.className = "news-description";
+      desc.textContent = item.description;
+      div.appendChild(desc);
+    }
     const meta = document.createElement("div");
     meta.className = "news-meta";
     meta.innerHTML = `<span class="news-source">${item.source}</span><span>${timeAgo(item.date)}</span>`;
@@ -802,7 +874,7 @@ async function fetchHN(source){
     try{
       const r = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
       const item = await r.json();
-      return { title:item.title, url:item.url||`https://news.ycombinator.com/item?id=${id}`, source:source.name, date:(item.time||0)*1000, category:source.category };
+      return { title:item.title, description:cleanNewsText(item.text||""), url:item.url||`https://news.ycombinator.com/item?id=${id}`, source:source.name, date:(item.time||0)*1000, category:source.category };
     }catch(e){ return null; }
   }));
   return items.filter(Boolean);
@@ -829,7 +901,7 @@ async function fetchRSS(source){
     const link=(item.querySelector("link")?.textContent||"").trim();
     const pubDate=item.querySelector("pubDate")?.textContent;
     const date=pubDate?new Date(pubDate).getTime():Date.now();
-    return {title,url:link,source:source.name,date:isNaN(date)?Date.now():date,category:source.category};
+    return {title,description:rssDescription(item),url:link,source:source.name,date:isNaN(date)?Date.now():date,category:source.category};
   }).filter(i=>i.title);
 }
 
@@ -1222,6 +1294,8 @@ function applyDisplaySettings(){
     const cardEl = document.querySelector(`[data-card="${c.key}"]`);
     if(cardEl) cardEl.hidden = !settings.display.cards[c.key];
   });
+  const inlineAir = document.querySelector("#inline-air");
+  if(inlineAir) inlineAir.hidden = !settings.display.cards.airQuality;
   applyClockSize();
 }
 

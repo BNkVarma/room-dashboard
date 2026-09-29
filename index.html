@@ -30,46 +30,54 @@
         <h2 class="card-title">Weather</h2>
         <span class="fresh" id="fresh-weather">—</span>
       </header>
-      <div class="weather-main">
-        <div class="weather-icon" id="weather-icon" aria-hidden="true"></div>
-        <div class="weather-primary">
-          <div class="weather-temp" id="weather-temp">—°</div>
-          <div class="weather-cond" id="weather-cond">Loading…</div>
+      <div class="weather-layout">
+        <div class="weather-today">
+          <div class="weather-main">
+            <div class="weather-icon" id="weather-icon" aria-hidden="true"></div>
+            <div class="weather-primary">
+              <div class="weather-temp" id="weather-temp">—°</div>
+              <div class="weather-cond" id="weather-cond">Loading…</div>
+            </div>
+          </div>
+          <div class="weather-sub">
+            <span class="weather-place" id="weather-place">—</span>
+            <span class="weather-hilo">
+              <span class="hilo-high" id="weather-high">H:—°</span>
+              <span class="hilo-low" id="weather-low">L:—°</span>
+              <span class="hilo-rain" id="weather-rain">🌧 —%</span>
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="weather-sub">
-        <span class="weather-place" id="weather-place">—</span>
-        <span class="weather-hilo">
-          <span class="hilo-high" id="weather-high">H:—°</span>
-          <span class="hilo-low" id="weather-low">L:—°</span>
-        </span>
+        <div class="weather-forecast-panel">
+          <div class="forecast-heading">NEXT 7 DAYS</div>
+          <div class="forecast-list" id="forecast-list" aria-label="7 day forecast"></div>
+        </div>
       </div>
     </article>
 
     <article class="card card-metrics" id="card-metrics" data-card="weatherDetails">
       <header class="card-head">
         <h2 class="card-title">Conditions</h2>
+        <span class="fresh" id="fresh-air">—</span>
       </header>
       <div class="metrics-grid" id="metrics-grid">
         <!-- populated by JS -->
       </div>
-    </article>
-
-    <article class="card card-air" id="card-air" data-card="airQuality">
-      <header class="card-head">
-        <h2 class="card-title">Air quality</h2>
-        <span class="fresh" id="fresh-air">—</span>
-      </header>
-      <div class="air-main">
-        <div class="air-aqi">
-          <div class="aqi-number" id="aqi-number">—</div>
-          <div class="aqi-label" id="aqi-label">—</div>
+      <div class="inline-air" id="inline-air" data-air-quality="true">
+        <div class="inline-air-head">
+          <span class="inline-air-title">Air quality</span>
+          <span class="inline-air-place" id="air-place">—</span>
         </div>
-        <div class="air-dot" id="air-dot" aria-hidden="true"></div>
-      </div>
-      <div class="air-sub">
-        <span id="air-pm25">PM2.5 —</span>
-        <span id="air-place">—</span>
+        <div class="inline-air-main">
+          <div>
+            <span class="aqi-number inline-aqi-number" id="aqi-number">—</span>
+            <span class="aqi-label inline-aqi-label" id="aqi-label">—</span>
+          </div>
+          <span class="air-dot" id="air-dot" aria-hidden="true"></span>
+        </div>
+        <div class="inline-air-sub">
+          <span id="air-pm25">PM2.5 —</span>
+        </div>
       </div>
     </article>
 
