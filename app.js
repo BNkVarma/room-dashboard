@@ -782,7 +782,9 @@ function enabledNewsCategories(){
 
 function newsPageDurationMs(){
   const categories = Math.max(1, enabledNewsCategories().length);
-  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / Math.max(1, 3)));
+  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
+  const totalPerPage = perColumn * 2;
+  const pages = Math.max(1, Math.ceil((settings.newsCount || 10) / totalPerPage));
   return Math.max(15000, Math.round((settings.newsRefreshMinutes * 60000) / categories / pages));
 }
 
@@ -797,8 +799,9 @@ function renderNewsNavigation(){
   if(newsCategoryIndex >= cats.length) newsCategoryIndex = 0;
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perPage = Math.max(1, 3);
-  const pages = Math.max(1, Math.ceil(items.length / perPage));
+  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
+  const totalPerPage = perColumn * 2;
+  const pages = Math.max(1, Math.ceil(items.length / totalPerPage));
   if(newsPageIndex >= pages) newsPageIndex = 0;
   el.newsCategoryTitle.textContent = cat.label;
   el.newsCategoryStrip.innerHTML = cats.map((c,i)=>`<span class="news-category-pill ${i===newsCategoryIndex?'active':''}">${c.label}</span>`).join("");
@@ -852,12 +855,23 @@ function renderCurrentNewsPage(ts){
   renderNewsNavigation();
   const cat = cats[newsCategoryIndex];
   const items = newsByCategory[cat.key] || [];
-  const perPage = 3;
-  const start = newsPageIndex * perPage;
-  const pageItems = items.slice(start, start + perPage);
-  // The dashboard now uses one continuous news surface spanning columns 2–3.
-  // Keep all three stories together so the typography and summaries stay readable.
-  renderNewsItems(el.newsList, pageItems);
+  const perColumn = Math.max(1, settings.newsHeadlinesPerPage || 3);
+  const totalPerPage = perColumn * 2;
+  const start = newsPageIndex * totalPerPage;
+  const centerItems = items.slice(start, start + perColumn);
+  const rightItems = items.slice(start + perColumn, start + totalPerPage);
+
+  // News is visually continuous across columns 2 and 3: the center column
+  // starts the page and the right column continues the same page underneath
+  // the calendar. This avoids forcing unrelated cards to share row heights.
+  renderNewsItems(el.newsList, centerItems);
+  if(el.newsListSecondary) renderNewsItems(el.newsListSecondary, rightItems);
+  if(el.newsSecondaryTitle) el.newsSecondaryTitle.textContent = `${cat.label} · continued`;
+  if(el.newsSecondaryPage) {
+    const first = start + perColumn + 1;
+    const last = start + perColumn + rightItems.length;
+    el.newsSecondaryPage.textContent = rightItems.length ? `${first}–${last}` : "—";
+  }
   el.freshNews.textContent = ts ? `Fetched ${freshnessLabel(ts).replace(/^Updated /, "")}` : "—";
 }
 
@@ -865,13 +879,13 @@ function moveNews(delta){
   const cats = enabledNewsCategories();
   if(!cats.length) return;
   if(delta !== 0){
-    if(delta === 1 && newsPageIndex < Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, 3)) - 1)){
+    if(delta === 1 && newsPageIndex < Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / (Math.max(1, settings.newsHeadlinesPerPage || 3) * 2)) - 1)){
       newsPageIndex++;
     }else if(delta === -1 && newsPageIndex > 0){
       newsPageIndex--;
     }else{
       newsCategoryIndex = (newsCategoryIndex + (delta > 0 ? 1 : -1) + cats.length) % cats.length;
-      newsPageIndex = delta > 0 ? 0 : Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / Math.max(1, 3)) - 1);
+      newsPageIndex = delta > 0 ? 0 : Math.max(0, Math.ceil((newsByCategory[cats[newsCategoryIndex].key]||[]).length / (Math.max(1, settings.newsHeadlinesPerPage || 3) * 2)) - 1);
     }
   }
   renderCurrentNewsPage(lastNewsTimestamp || Date.now());
@@ -1314,6 +1328,8 @@ function applyDisplaySettings(){
   });
   const inlineAir = document.querySelector("#inline-air");
   if(inlineAir) inlineAir.hidden = !settings.display.cards.airQuality;
+  const newsSecondary = document.querySelector("#card-news-secondary");
+  if(newsSecondary) newsSecondary.hidden = !settings.display.cards.news;
   applyClockSize();
 }
 
@@ -1387,7 +1403,11 @@ function renderSettingsStaticLists(){
 function renderEventsEditList(){
   const list = $("#events-list");
   list.innerHTML = "";
-  const remote = reviveCalendarEvents(settings.appleCalendarEvents).filter(e => e.start.getTime() >= Date.now()-86400000).sort((a,b)=>a.start-b.start).slice(0,20);
+  const remote = reviveCalendarEvents(settings.appleCalendarEvents)
+    .map(e => ({ ...e, start: e.start instanceof Date ? e.start : new Date(e.start) }))
+    .filter(e => e.start instanceof Date && !isNaN(e.start.getTime()) && e.start.getTime() >= Date.now()-86400000)
+    .sort((a,b)=>a.start-b.start)
+    .slice(0,20);
   const local = [...settings.calendarEvents].sort((a,b) => new Date(a.date+"T"+(a.time||"00:00")) - new Date(b.date+"T"+(b.time||"00:00")));
   if(!remote.length && !local.length){ list.innerHTML = `<div class="empty-note">No events yet.</div>`; return; }
 

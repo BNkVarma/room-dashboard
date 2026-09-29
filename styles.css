@@ -1159,3 +1159,85 @@ input[type="time"]{
   .card-clock{ min-height:220px; }
   .card-news-main{ min-height:420px; }
 }
+
+/* ======================================================================
+   Independent-column information architecture
+   Each column owns its own vertical rhythm. No global horizontal row
+   divisions: weather/conditions/sun-moon, clock/events/news, and
+   calendar/news can all have different heights.
+   ====================================================================== */
+@media (min-width: 981px){
+  .dashboard{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.14fr) minmax(0,1fr);
+    grid-template-rows:1fr;
+    grid-template-areas:"left center right";
+    align-items:stretch;
+  }
+
+  .col{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+    gap:var(--gap);
+  }
+  .col-left{grid-area:left;}
+  .col-center{grid-area:center;}
+  .col-right{grid-area:right;}
+
+  .card-weather,
+  .card-metrics,
+  .card-sun-moon,
+  .card-clock,
+  .card-next-event,
+  .card-calendar,
+  .card-news-main,
+  .card-news-secondary{
+    grid-area:auto;
+    min-height:0;
+  }
+
+  /* Left column: weather dominant, conditions get the most detail space,
+     sun/moon stays intentionally compact. */
+  .col-left .card-weather{flex:1.55 1 0;}
+  .col-left .card-metrics{flex:1.28 1 0;}
+  .col-left .card-sun-moon{flex:.70 1 0;}
+
+  /* Center: compact clock, short event stack, news gets the remaining room. */
+  .col-center .card-clock{flex:.62 1 0;}
+  .col-center .card-next-event{flex:.78 1 0;}
+  .col-center .card-news-main{flex:2.55 1 0;}
+
+  /* Right: calendar owns the top, the same news page continues below it. */
+  .col-right .card-calendar{flex:1.12 1 0;}
+  .col-right .card-news-secondary{display:flex !important; flex:1.88 1 0;}
+
+  .card-news-secondary .news-head{margin-bottom:8px;}
+  .card-news-secondary .news-list{padding-right:4px;}
+  .card-news-secondary .news-item{justify-content:flex-start; padding:14px 0 13px;}
+  .card-news-secondary .news-title{font-size:clamp(16px,1.38vw,21px);}
+  .card-news-secondary .news-description{font-size:clamp(12px,1vw,14px); -webkit-line-clamp:3; line-clamp:3;}
+
+  /* Keep the conditions card readable after giving it extra height. */
+  .col-left .card-metrics .metrics-grid{align-content:start; padding-top:4px;}
+  .col-left .card-metrics .metric-value{font-size:21px;}
+  .col-left .card-metrics .metric-label{font-size:12px;}
+  .col-left .inline-air{margin-top:auto;}
+
+  /* Sun/moon deliberately consumes little vertical space. */
+  .col-left .card-sun-moon .sun-row{flex:0 0 78px;}
+  .col-left .card-sun-moon .moon-row{flex:0 0 auto;}
+
+  /* The main news surface and its continuation read as one stream. */
+  .card-news-main .news-item,
+  .card-news-secondary .news-item{justify-content:flex-start;}
+}
+
+@media (min-width: 981px) and (max-height: 850px){
+  .dashboard{gap:14px; padding:16px;}
+  .col{gap:14px;}
+  .col-left .card-metrics .metric-value{font-size:18px;}
+  .card-news-main .news-item,
+  .card-news-secondary .news-item{padding-top:9px; padding-bottom:9px;}
+}
